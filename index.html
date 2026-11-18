@@ -828,7 +828,7 @@ canvas.obj {
   font-weight: 700;
 }
 
-/* Victory Ceremony Podium */
+/* Victory Ceremony Podium (Host & Player) */
 .podium-wrap {
   position: relative;
   padding: 20px 12px 0;
@@ -838,7 +838,18 @@ canvas.obj {
   margin-bottom: 20px;
 }
 
-#confettiCanvas {
+.player-podium-hero {
+  position: relative;
+  text-align: center;
+  padding: 24px 16px 20px;
+  border-radius: var(--radius);
+  background: radial-gradient(circle at top, var(--gold-soft), var(--accent-soft) 60%, transparent 95%);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+#confettiCanvas, #pConfettiCanvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -930,8 +941,13 @@ canvas.obj {
   margin-bottom: 20px;
 }
 
+.kpi-grid.player-kpis {
+  grid-template-columns: repeat(3, 1fr);
+  text-align: left;
+}
+
 @media (max-width: 620px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .kpi-grid, .kpi-grid.player-kpis { grid-template-columns: repeat(2, 1fr); }
   .podium-stage { gap: 8px; }
   .podium-player { font-size: 0.96rem; }
 }
@@ -956,6 +972,12 @@ canvas.obj {
   font-weight: 700;
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
+}
+
+.kpi-sub {
+  font-size: 0.76rem;
+  color: var(--mute);
+  margin-top: 3px;
 }
 
 table {
@@ -1061,7 +1083,7 @@ th:first-child, td:first-child { text-align: left; }
     <div class="grid" style="max-width:540px">
       <div>
         <label for="joinPin">Room PIN</label>
-        <input type="text" id="joinPin" placeholder="e.g. A7K9P" maxlength="8" style="text-transform:uppercase;font-weight:700;letter-spacing:0.1em">
+        <input type="text" id="joinPin" placeholder="e.g. A7K9P" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;font-weight:700;letter-spacing:0.1em">
       </div>
       <div>
         <label for="joinName">Your Nickname</label>
@@ -1538,12 +1560,58 @@ th:first-child, td:first-child { text-align: left; }
     </div>
   </div>
 
-  <!-- Player Victory Screen -->
-  <div id="pLivePodiumView" class="panel hidden" style="text-align:center;padding:36px 24px">
-    <div id="pFinalMedal" style="font-size:3.2rem;margin-bottom:6px">🏆</div>
-    <h1 id="pFinalRankTitle" style="margin-bottom:4px">1st Place!</h1>
-    <p id="pFinalSummary" class="mute" style="margin:0 auto 20px"></p>
-    <button type="button" id="pLeaveLiveBtn" class="btn ghost">Done</button>
+  <!-- Player Individual Victory Ceremony Screen -->
+  <div id="pLivePodiumView" class="panel hidden">
+    <div class="player-podium-hero">
+      <canvas id="pConfettiCanvas"></canvas>
+      <div id="pFinalMedal" style="font-size:3.4rem;line-height:1.1;margin-bottom:6px;position:relative;z-index:2">🏆</div>
+      <span class="badge" id="pFinalRankPill" style="position:relative;z-index:2">Rank #1 of 1</span>
+      <h1 id="pFinalRankTitle" style="margin:8px 0 4px;position:relative;z-index:2">1st Place Champion!</h1>
+      <p id="pFinalSummary" class="mute" style="margin:0 auto;position:relative;z-index:2"></p>
+    </div>
+
+    <div class="kpi-grid player-kpis">
+      <div class="kpi">
+        <div class="kpi-label">Final Rank</div>
+        <div class="kpi-val" id="pKpiRank">#1</div>
+        <div class="kpi-sub" id="pKpiRankSub">of 1 player</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Total Score</div>
+        <div class="kpi-val" id="pKpiScore">0</div>
+        <div class="kpi-sub">points earned</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Longest Run</div>
+        <div class="kpi-val" id="pKpiStreak">0</div>
+        <div class="kpi-sub">correct in a row</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Fastest Correct</div>
+        <div class="kpi-val" id="pKpiFastest">–</div>
+        <div class="kpi-sub" id="pKpiFastestSub">no correct rounds</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Accuracy</div>
+        <div class="kpi-val" id="pKpiAcc">–</div>
+        <div class="kpi-sub" id="pKpiAccSub">0 / 0 correct</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg Correct Speed</div>
+        <div class="kpi-val" id="pKpiAvgRt">–</div>
+        <div class="kpi-sub">per solved round</div>
+      </div>
+    </div>
+
+    <h2>Your Round-by-Round Summary</h2>
+    <div style="overflow-x:auto">
+      <table id="pFinalBreakdownTable"></table>
+    </div>
+
+    <div class="row" style="margin-top:22px;justify-content:space-between">
+      <button type="button" id="pExportCsvBtn" class="btn ghost">Export My CSV</button>
+      <button type="button" id="pLeaveLiveBtn" class="btn">Done</button>
+    </div>
   </div>
 </section>
 
@@ -2219,7 +2287,7 @@ function openJoinPanel(prefillPin = "", prefillGas = "", prefillSave = false) {
   $("joinError").classList.add("hidden");
   liveJoinGasUrl = (prefillGas || "").trim();
   $("joinSaveNotice").classList.toggle("hidden", !(prefillSave && liveJoinGasUrl));
-  if (prefillPin) $("joinPin").value = prefillPin.toUpperCase();
+  if (prefillPin) $("joinPin").value = prefillPin.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   setTimeout(() => ($("joinPin").value ? $("joinName") : $("joinPin")).focus(), 50);
 }
 
@@ -2916,8 +2984,8 @@ function renderQrToCanvas(canvas, text) {
 }
 
 /* ==========================================================================
-   ZERO-CONFIG REAL-TIME MULTIPLAYER RELAY (MQTT 3.1.1 OVER TLS WEBSOCKETS)
-   Works across devices & school Wi-Fi on port 443 with no setup or accounts.
+   MULTI-BROKER REAL-TIME RELAY (MQTT 3.1.1 OVER TLS WEBSOCKETS + LOCAL BC)
+   Connects across all brokers in parallel so PIN-code joins always find rooms.
    ========================================================================== */
 const MQTT_BROKERS = [
   "wss://broker.emqx.io:8084/mqtt",
@@ -2926,109 +2994,173 @@ const MQTT_BROKERS = [
 
 class LiveRelayClient {
   constructor() {
-    this.ws = null;
-    this.connected = false;
-    this.pingTimer = null;
+    this.conns = new Map();
     this.subs = new Set();
+    this.retainedOutbox = new Map();
     this.handlers = [];
-    this.clientId = "im_" + Math.random().toString(36).slice(2, 11);
-    this.packetId = 1;
     this.closedByUser = false;
+    this.bc = null;
+    try {
+      this.bc = new BroadcastChannel("isomatch_live_mesh_v1");
+      this.bc.onmessage = ev => {
+        const d = ev.data;
+        if (d && d.topic && d.payload !== undefined) {
+          if (d.retain) {
+            if (d.payload === null) this.retainedOutbox.delete(d.topic);
+            else this.retainedOutbox.set(d.topic, d.payload);
+          }
+          if (this._matchesAnySub(d.topic) && d.payload !== null) {
+            for (const fn of this.handlers) fn(d.topic, d.payload);
+          }
+        }
+      };
+    } catch (e) {}
+  }
+
+  _topicMatches(filter, topic) {
+    if (filter === topic) return true;
+    const fParts = filter.split("/");
+    const tParts = topic.split("/");
+    for (let i = 0; i < fParts.length; i++) {
+      if (fParts[i] === "#") return true;
+      if (i >= tParts.length) return false;
+      if (fParts[i] !== "+" && fParts[i] !== tParts[i]) return false;
+    }
+    return fParts.length === tParts.length;
+  }
+
+  _matchesAnySub(topic) {
+    for (const f of this.subs) {
+      if (this._topicMatches(f, topic)) return true;
+    }
+    return false;
   }
 
   connect() {
     this.closedByUser = false;
     return new Promise((resolve, reject) => {
-      let idx = 0;
-      const tryNext = () => {
-        if (this.closedByUser) return reject(new Error("Closed"));
-        if (idx >= MQTT_BROKERS.length) {
-          return reject(new Error("Could not reach multiplayer relay. Check your internet connection."));
+      let resolved = false;
+      let failedCount = 0;
+
+      const onBrokerReady = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
         }
-        const url = MQTT_BROKERS[idx++];
-        let settled = false;
-        let ws;
-        try {
-          ws = new WebSocket(url, "mqtt");
-        } catch (e) {
-          return tryNext();
-        }
-        ws.binaryType = "arraybuffer";
-
-        const connTimeout = setTimeout(() => {
-          if (!settled) {
-            settled = true;
-            try { ws.close(); } catch (e) {}
-            tryNext();
-          }
-        }, 4500);
-
-        ws.onopen = () => {
-          ws.send(this._encodeConnect());
-        };
-
-        ws.onmessage = ev => {
-          const buf = new Uint8Array(ev.data);
-          this._handleFrame(buf, () => {
-            if (!settled) {
-              settled = true;
-              clearTimeout(connTimeout);
-              this.ws = ws;
-              this.connected = true;
-              for (const topic of this.subs) {
-                ws.send(this._encodeSubscribe(topic));
-              }
-              clearInterval(this.pingTimer);
-              this.pingTimer = setInterval(() => {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                  this.ws.send(new Uint8Array([0xc0, 0x00]));
-                }
-              }, 25000);
-              resolve();
-            }
-          });
-        };
-
-        ws.onerror = () => {
-          if (!settled) {
-            settled = true;
-            clearTimeout(connTimeout);
-            try { ws.close(); } catch (e) {}
-            tryNext();
-          }
-        };
-
-        ws.onclose = () => {
-          if (!settled) {
-            settled = true;
-            clearTimeout(connTimeout);
-            tryNext();
-          } else if (this.ws === ws) {
-            this.connected = false;
-            clearInterval(this.pingTimer);
-            if (!this.closedByUser) {
-              setTimeout(() => {
-                if (!this.closedByUser && !this.connected) this.connect().catch(() => {});
-              }, 1500);
-            }
-          }
-        };
       };
-      tryNext();
+
+      const onBrokerInitialFail = () => {
+        failedCount++;
+        if (!resolved && failedCount >= MQTT_BROKERS.length) {
+          reject(new Error("Could not reach multiplayer relay. Check your internet connection."));
+        }
+      };
+
+      for (const url of MQTT_BROKERS) {
+        this._connectOne(url, onBrokerReady, onBrokerInitialFail);
+      }
     });
+  }
+
+  _connectOne(url, onFirstReady, onFirstFail) {
+    if (this.closedByUser) return;
+    let settled = false;
+    let ws;
+    try {
+      ws = new WebSocket(url, "mqtt");
+    } catch (e) {
+      onFirstFail();
+      return;
+    }
+    ws.binaryType = "arraybuffer";
+    const clientId = "im_" + Math.random().toString(36).slice(2, 11);
+    const state = { ws, open: false, pingTimer: null, packetId: 1 };
+    this.conns.set(url, state);
+
+    const connTimeout = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        try { ws.close(); } catch (e) {}
+        onFirstFail();
+      }
+    }, 6500);
+
+    ws.onopen = () => {
+      ws.send(this._encodeConnect(clientId));
+    };
+
+    ws.onmessage = ev => {
+      const buf = new Uint8Array(ev.data);
+      this._handleFrame(buf, () => {
+        state.open = true;
+        for (const topic of this.subs) {
+          ws.send(this._encodeSubscribe(state, topic));
+        }
+        for (const [topic, obj] of this.retainedOutbox.entries()) {
+          ws.send(this._encodePublish(topic, JSON.stringify(obj), true));
+        }
+        clearInterval(state.pingTimer);
+        state.pingTimer = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(new Uint8Array([0xc0, 0x00]));
+          }
+        }, 22000);
+
+        if (!settled) {
+          settled = true;
+          clearTimeout(connTimeout);
+          onFirstReady();
+        }
+      });
+    };
+
+    ws.onerror = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(connTimeout);
+        try { ws.close(); } catch (e) {}
+        onFirstFail();
+      }
+    };
+
+    ws.onclose = () => {
+      state.open = false;
+      clearInterval(state.pingTimer);
+      if (!settled) {
+        settled = true;
+        clearTimeout(connTimeout);
+        onFirstFail();
+      }
+      if (!this.closedByUser) {
+        setTimeout(() => {
+          if (!this.closedByUser) this._connectOne(url, () => {}, () => {});
+        }, 2000);
+      }
+    };
   }
 
   subscribe(topic) {
     this.subs.add(topic);
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(this._encodeSubscribe(topic));
+    for (const state of this.conns.values()) {
+      if (state.open && state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(this._encodeSubscribe(state, topic));
+      }
     }
   }
 
   publish(topic, obj, retain = true) {
+    if (retain) {
+      if (obj === null) this.retainedOutbox.delete(topic);
+      else this.retainedOutbox.set(topic, obj);
+    }
     const payload = obj === null ? "" : JSON.stringify(obj);
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(this._encodePublish(topic, payload, retain));
+    for (const state of this.conns.values()) {
+      if (state.open && state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(this._encodePublish(topic, payload, retain));
+      }
+    }
+    if (this.bc) {
+      try { this.bc.postMessage({ topic, payload: obj, retain }); } catch (e) {}
     }
   }
 
@@ -3038,11 +3170,17 @@ class LiveRelayClient {
 
   close() {
     this.closedByUser = true;
-    this.connected = false;
-    clearInterval(this.pingTimer);
-    if (this.ws) {
-      try { this.ws.close(); } catch (e) {}
-      this.ws = null;
+    for (const state of this.conns.values()) {
+      state.open = false;
+      clearInterval(state.pingTimer);
+      if (state.ws) {
+        try { state.ws.close(); } catch (e) {}
+      }
+    }
+    this.conns.clear();
+    if (this.bc) {
+      try { this.bc.close(); } catch (e) {}
+      this.bc = null;
     }
   }
 
@@ -3074,15 +3212,15 @@ class LiveRelayClient {
     return out;
   }
 
-  _encodeConnect() {
+  _encodeConnect(clientId) {
     const vh = new Uint8Array([0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x02, 0x00, 0x3c]);
-    const cid = this._encodeStr(this.clientId);
+    const cid = this._encodeStr(clientId);
     const rem = this._encodeRemLen(vh.length + cid.length);
     return this._concat([new Uint8Array([0x10]), rem, vh, cid]);
   }
 
-  _encodeSubscribe(topic) {
-    const pid = this.packetId++ & 0xffff || 1;
+  _encodeSubscribe(state, topic) {
+    const pid = (state.packetId++ & 0xffff) || 1;
     const vh = new Uint8Array([(pid >> 8) & 0xff, pid & 0xff]);
     const t = this._encodeStr(topic);
     const qos = new Uint8Array([0x00]);
@@ -3178,8 +3316,10 @@ function showHostSubView(id) {
 
 function broadcastHostRoomState() {
   if (!liveHostState || !liveRelay) return;
+  liveHostState.seq = (liveHostState.seq || 0) + 1;
   const payload = {
     pin: liveHostState.pin,
+    seq: liveHostState.seq,
     phase: liveHostState.phase,
     round: liveHostState.round,
     roundStartedAt: liveHostState.roundStartedAt,
@@ -3223,6 +3363,7 @@ $("createLiveBtn").onclick = async () => {
 
     liveHostState = {
       pin,
+      seq: 0,
       config: liveCfg,
       phase: "lobby",
       round: 0,
@@ -3233,13 +3374,21 @@ $("createLiveBtn").onclick = async () => {
 
     relay.onMessage((topic, msg) => {
       if (!liveHostState) return;
+      if (topic === `isomatch/v1/room/${pin}/discover`) {
+        broadcastHostRoomState();
+        return;
+      }
       const prefix = `isomatch/v1/room/${pin}/player/`;
       if (topic.startsWith(prefix) && msg && msg.id) {
-        liveHostState.playersMap.set(msg.id, msg);
-        onHostPlayersUpdated();
+        const prev = liveHostState.playersMap.get(msg.id);
+        if (!prev || (msg.seq || 0) >= (prev.seq || 0)) {
+          liveHostState.playersMap.set(msg.id, msg);
+          onHostPlayersUpdated();
+        }
       }
     });
     relay.subscribe(`isomatch/v1/room/${pin}/player/+`);
+    relay.subscribe(`isomatch/v1/room/${pin}/discover`);
     broadcastHostRoomState();
 
     const base = window.location.href.split("?")[0].split("#")[0];
@@ -3465,27 +3614,28 @@ function showVictoryCeremony() {
   setTimeout(() => $("pod2").classList.add("revealed"), 750);
   setTimeout(() => {
     $("pod1").classList.add("revealed");
-    launchConfetti();
+    launchConfetti($("confettiCanvas"));
   }, 1300);
 
-  let tbl = `<tr><th>Rank</th><th>Player</th><th>Total Score</th><th>Correct</th><th>Avg Speed</th></tr>`;
+  let tbl = `<tr><th>Rank</th><th>Player</th><th>Total Score</th><th>Correct</th><th>Longest Run</th><th>Fastest</th></tr>`;
   sorted.forEach((p, idx) => {
     const ans = Array.isArray(p.answers) ? p.answers : [];
-    const okAns = ans.filter(a => a.correct === 1);
-    const avgRt = okAns.length ? `${(okAns.reduce((s, a) => s + a.rt_ms, 0) / okAns.length / 1000).toFixed(2)}s` : "–";
+    const okAns = ans.filter(a => a.correct === 1 && typeof a.rt_ms === "number" && a.rt_ms > 0);
+    const fastRt = okAns.length ? `${(Math.min(...okAns.map(a => a.rt_ms)) / 1000).toFixed(2)}s` : "–";
     tbl += `<tr>
       <td>${idx + 1}</td>
       <td style="text-align:left;font-weight:600">${escapeHtml(p.name)}</td>
       <td><strong>${(p.score || 0).toLocaleString()}</strong></td>
       <td>${okAns.length} / ${liveHostState.config.totalRounds}</td>
-      <td>${avgRt}</td>
+      <td>${p.bestStreak || 0}</td>
+      <td>${fastRt}</td>
     </tr>`;
   });
   $("podiumFullTable").innerHTML = tbl;
 }
 
-function launchConfetti() {
-  const canvas = $("confettiCanvas");
+function launchConfetti(canvas) {
+  if (!canvas) return;
   const wrap = canvas.parentElement;
   canvas.width = wrap.clientWidth;
   canvas.height = wrap.clientHeight;
@@ -3503,6 +3653,7 @@ function launchConfetti() {
     color: colors[Math.floor(Math.random() * colors.length)]
   }));
 
+  cancelAnimationFrame(confettiRaf);
   const start = performance.now();
   (function step(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -3545,7 +3696,7 @@ $("exportLiveCsvBtn").onclick = () => {
         axis: a.axis,
         response: a.response,
         correct: a.correct,
-        rt_ms: a.rt_ms
+        rt_ms: a.rt_ms ?? ""
       });
     }
   }
@@ -3575,11 +3726,14 @@ function showPlayerSubView(id) {
 function publishPlayerState() {
   const st = livePlayerState;
   if (!st || !liveRelay) return;
+  st.seq = (st.seq || 0) + 1;
   liveRelay.publish(`isomatch/v1/room/${st.pin}/player/${st.id}`, {
     id: st.id,
+    seq: st.seq,
     name: st.name,
     score: st.score,
     streak: st.streak,
+    bestStreak: st.bestStreak,
     lastRound: st.lastRound,
     lastCorrect: st.lastCorrect,
     lastRtMs: st.lastRtMs,
@@ -3589,7 +3743,7 @@ function publishPlayerState() {
 }
 
 $("joinGameBtn").onclick = async () => {
-  const pin = $("joinPin").value.trim().toUpperCase();
+  const pin = $("joinPin").value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   const name = $("joinName").value.trim();
   const errEl = $("joinError");
   errEl.classList.add("hidden");
@@ -3600,8 +3754,9 @@ $("joinGameBtn").onclick = async () => {
     return;
   }
 
+  $("joinPin").value = pin;
   $("joinGameBtn").disabled = true;
-  $("joinGameBtn").textContent = "Connecting…";
+  $("joinGameBtn").textContent = `Connecting to ${pin}…`;
 
   try {
     stopLiveLoops();
@@ -3611,22 +3766,38 @@ $("joinGameBtn").onclick = async () => {
 
     const room = await new Promise((resolve, reject) => {
       let done = false;
+      let pingInterval = null;
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        clearInterval(pingInterval);
+      };
+
       const timer = setTimeout(() => {
         if (!done) {
           done = true;
-          reject(new Error(`Room PIN "${pin}" not found. Check the PIN on the host's screen and try again.`));
+          cleanup();
+          reject(new Error(`Room PIN "${pin}" was not found. Check that the host's lobby is open on the same PIN and try again.`));
         }
-      }, 3000);
+      }, 8000);
 
       relay.onMessage((topic, msg) => {
         if (done) return;
         if (topic === `isomatch/v1/room/${pin}/state` && msg && msg.pin === pin && msg.phase !== "ended") {
           done = true;
-          clearTimeout(timer);
+          cleanup();
           resolve(msg);
         }
       });
+
       relay.subscribe(`isomatch/v1/room/${pin}/state`);
+      // Actively ping the host so even if a broker dropped a retained message, the host immediately rebroadcasts
+      relay.publish(`isomatch/v1/room/${pin}/discover`, { ts: Date.now() }, false);
+      pingInterval = setInterval(() => {
+        if (!done) {
+          relay.publish(`isomatch/v1/room/${pin}/discover`, { ts: Date.now() }, false);
+        }
+      }, 1500);
     });
 
     sfx("ok");
@@ -3636,6 +3807,7 @@ $("joinGameBtn").onclick = async () => {
 
     livePlayerState = {
       pin,
+      seq: 0,
       gasUrl: effectiveGas,
       id: playerId,
       name,
@@ -3643,6 +3815,7 @@ $("joinGameBtn").onclick = async () => {
       sessionStart: new Date().toISOString(),
       score: 0,
       streak: 0,
+      bestStreak: 0,
       lastRound: 0,
       lastCorrect: null,
       lastRtMs: null,
@@ -3761,6 +3934,7 @@ function submitLivePlayerAnswer(ans) {
   let pts = 0;
   if (correct) {
     st.streak += 1;
+    if (st.streak > st.bestStreak) st.bestStreak = st.streak;
     const ratio = Math.min(1, Math.max(0, rtMs / limitMs));
     pts = Math.round(1000 * (1 - 0.5 * ratio));
     st.score += pts;
@@ -3772,7 +3946,7 @@ function submitLivePlayerAnswer(ans) {
 
   st.lastRound = st.currentRoundShown;
   st.lastCorrect = correct;
-  st.lastRtMs = Math.round(rtMs);
+  st.lastRtMs = ans === null ? null : Math.round(rtMs);
   st.lastPts = pts;
 
   const now = new Date();
@@ -3791,7 +3965,8 @@ function submitLivePlayerAnswer(ans) {
     axis: stim.axisName,
     response: ans === null ? "timeout" : (ans ? "same" : "different"),
     correct: +correct,
-    rt_ms: Math.round(rtMs * 10) / 10,
+    rt_ms: ans === null ? null : Math.round(rtMs * 10) / 10,
+    pts,
     score: st.score,
     streak: st.streak,
     pace: "live",
@@ -3823,6 +3998,38 @@ function enterPlayerLeaderboard(room, standings) {
   }
 
   const answered = st.lastRound === room.round;
+  if (!answered) {
+    st.streak = 0;
+    st.lastRound = room.round;
+    st.lastCorrect = false;
+    st.lastRtMs = null;
+    st.lastPts = 0;
+    const now = new Date();
+    st.answers.push({
+      mode: "multiplayer",
+      room_pin: st.pin,
+      participant: st.name,
+      date: localDate(now),
+      timestamp: now.toISOString(),
+      session_start: st.sessionStart,
+      practice: 0,
+      trial: room.round,
+      n_cubes: room.config.nCubes,
+      pair_type: st.stim.t.same ? "same" : "different",
+      angle_deg: st.stim.t.angle,
+      axis: st.stim.axisName,
+      response: "timeout",
+      correct: 0,
+      rt_ms: null,
+      pts: 0,
+      score: st.score,
+      streak: 0,
+      pace: "live",
+      trial_uid: `LIVE_${st.pin}_${st.id}_R${room.round}`
+    });
+    publishPlayerState();
+  }
+
   const ok = answered && st.lastCorrect;
   sfx(ok ? "ok" : "bad");
 
@@ -3830,7 +4037,7 @@ function enterPlayerLeaderboard(room, standings) {
   resMsg.style.color = ok ? "var(--ok)" : "var(--bad)";
   resMsg.textContent = ok
     ? `Correct! +${st.lastPts} pts (${(st.lastRtMs / 1000).toFixed(2)}s)`
-    : answered
+    : (answered && st.lastRtMs !== null)
       ? `Incorrect (${(st.lastRtMs / 1000).toFixed(2)}s) · 0 pts`
       : `Time's Up! · 0 pts`;
 
@@ -3843,21 +4050,125 @@ function enterPlayerLeaderboard(room, standings) {
   runAnimOnCanvases(st.stim, $("prc1"), $("prc2"), $("pLiveCap"));
 }
 
+function ordinalRank(n) {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
 function enterPlayerPodium(room, standings) {
   const st = livePlayerState;
   st.accepting = false;
   st.currentPhaseShown = "podium";
   sfx("fanfare");
 
-  const rankIdx = standings.findIndex(p => p.id === st.id);
-  const rank = rankIdx >= 0 ? rankIdx + 1 : standings.length;
-  $("pFinalMedal").textContent = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "🎉";
-  $("pFinalRankTitle").textContent = rank === 1 ? "1st Place Champion!" : rank === 2 ? "2nd Place!" : rank === 3 ? "3rd Place!" : `Finished #${rank}`;
+  const board = [...standings];
+  if (!board.some(p => p.id === st.id)) {
+    board.push({ id: st.id, name: st.name, score: st.score });
+  }
+  board.sort((a, b) => (b.score || 0) - (a.score || 0));
 
-  const okCount = st.answers.filter(a => a.correct === 1).length;
-  $("pFinalSummary").textContent = `Final Score: ${st.score.toLocaleString()} pts · ${okCount} of ${room.config.totalRounds} correct`;
+  const rankIdx = board.findIndex(p => p.id === st.id);
+  const rank = rankIdx >= 0 ? rankIdx + 1 : board.length;
+  const totalPlayers = Math.max(1, board.length);
+  const ord = ordinalRank(rank);
+
+  $("pFinalMedal").textContent = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "🎉";
+  $("pFinalRankPill").textContent = `Rank #${rank} of ${totalPlayers} player${totalPlayers === 1 ? "" : "s"}`;
+  $("pFinalRankTitle").textContent = rank === 1 ? "1st Place Champion!" : `${ord} Place!`;
+
+  const totalRounds = (room.config && room.config.totalRounds) || st.answers.length;
+  const okRounds = st.answers.filter(a => a.correct === 1);
+  const timedOk = okRounds.filter(a => typeof a.rt_ms === "number" && a.rt_ms > 0);
+  const fastest = timedOk.length
+    ? timedOk.reduce((best, cur) => cur.rt_ms < best.rt_ms ? cur : best, timedOk[0])
+    : null;
+  const avgCorrectMs = timedOk.length
+    ? timedOk.reduce((sum, a) => sum + a.rt_ms, 0) / timedOk.length
+    : NaN;
+  const accPct = totalRounds > 0 ? Math.round((okRounds.length / totalRounds) * 100) : 0;
+
+  $("pFinalSummary").textContent = `${st.name} · ${st.score.toLocaleString()} total points across ${totalRounds} round${totalRounds === 1 ? "" : "s"}`;
+
+  $("pKpiRank").textContent = `#${rank}`;
+  $("pKpiRankSub").textContent = `of ${totalPlayers} player${totalPlayers === 1 ? "" : "s"}`;
+  $("pKpiScore").textContent = st.score.toLocaleString();
+  $("pKpiStreak").textContent = st.bestStreak >= 3 ? `${st.bestStreak} 🔥` : String(st.bestStreak || 0);
+
+  if (fastest) {
+    $("pKpiFastest").textContent = `${(fastest.rt_ms / 1000).toFixed(2)}s`;
+    const pairLabel = fastest.pair_type === "same" ? "Same" : "Mirror";
+    $("pKpiFastestSub").textContent = `Round ${fastest.trial} · ${pairLabel} (${fastest.angle_deg}°)`;
+  } else {
+    $("pKpiFastest").textContent = "–";
+    $("pKpiFastestSub").textContent = "No correct rounds";
+  }
+
+  $("pKpiAcc").textContent = totalRounds > 0 ? `${accPct}%` : "–";
+  $("pKpiAccSub").textContent = `${okRounds.length} / ${totalRounds} correct`;
+  $("pKpiAvgRt").textContent = !isNaN(avgCorrectMs) ? `${(avgCorrectMs / 1000).toFixed(2)}s` : "–";
+
+  let tbl = `<tr><th>Round</th><th>Structure Pair</th><th>Your Answer</th><th>Result</th><th>Speed</th><th>Points</th></tr>`;
+  if (!st.answers.length) {
+    tbl += `<tr><td colspan="6" style="text-align:center;color:var(--mute)">No round data recorded.</td></tr>`;
+  } else {
+    for (const a of st.answers) {
+      const pairDesc = `${a.pair_type === "same" ? "Same" : "Mirror"} · ${a.angle_deg}°`;
+      const respLabel = a.response === "same" ? "Same" : a.response === "different" ? "Different" : "Time's up";
+      const isOk = a.correct === 1;
+      const isFastest = fastest && a.trial === fastest.trial;
+      const resHtml = isOk
+        ? `<span style="color:var(--ok);font-weight:700">✓ Correct</span>`
+        : `<span style="color:var(--bad);font-weight:600">✗ ${a.response === "timeout" ? "Missed" : "Incorrect"}</span>`;
+      const speedText = typeof a.rt_ms === "number" && a.rt_ms > 0
+        ? `${(a.rt_ms / 1000).toFixed(2)}s${isFastest ? " ⚡" : ""}`
+        : "–";
+      const ptsVal = a.pts || 0;
+      tbl += `<tr>
+        <td><strong>#${a.trial}</strong></td>
+        <td style="text-align:left">${pairDesc}</td>
+        <td>${respLabel}</td>
+        <td>${resHtml}</td>
+        <td>${speedText}</td>
+        <td><strong>${ptsVal > 0 ? `+${ptsVal}` : "0"}</strong></td>
+      </tr>`;
+    }
+  }
+  $("pFinalBreakdownTable").innerHTML = tbl;
+
   showPlayerSubView("pLivePodiumView");
+  if (rank <= 3 || st.score > 0) {
+    launchConfetti($("pConfettiCanvas"));
+  }
 }
+
+$("pExportCsvBtn").onclick = () => {
+  if (!livePlayerState) return;
+  const st = livePlayerState;
+  const rows = st.answers.map(a => ({
+    mode: "multiplayer",
+    room_pin: st.pin,
+    participant: st.name,
+    date: a.date || localDate(new Date()),
+    timestamp: a.timestamp || "",
+    session_start: a.session_start || "",
+    practice: 0,
+    trial: a.trial,
+    n_cubes: a.n_cubes,
+    pair_type: a.pair_type,
+    angle_deg: a.angle_deg,
+    axis: a.axis,
+    response: a.response,
+    correct: a.correct,
+    rt_ms: a.rt_ms ?? ""
+  }));
+  download(`isomatch_${st.pin}_${st.name}_${localDate(new Date())}.csv`, csvOf(rows), "text/csv");
+};
 
 $("pLeaveLiveBtn").onclick = () => {
   stopLiveLoops();
