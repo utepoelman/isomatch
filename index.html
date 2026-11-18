@@ -122,6 +122,19 @@ main {
   padding: 14px 20px 64px;
 }
 
+/* Full-screen & theater scaling for projector/host display */
+:fullscreen header,
+:fullscreen main,
+body.host-theater header,
+body.host-theater main {
+  max-width: 1180px;
+}
+
+:fullscreen .stage figure,
+body.host-theater .stage figure {
+  max-width: 470px;
+}
+
 h1 {
   font-size: 1.75rem;
   font-weight: 700;
@@ -498,8 +511,8 @@ button.btn:not(.ghost) kbd {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
-/* Game HUD */
-.hud {
+/* Game HUD & Host Top Bar */
+.hud, .host-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -517,6 +530,39 @@ button.btn:not(.ghost) kbd {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-wrap: wrap;
+}
+
+.host-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0;
+  user-select: none;
+}
+
+.host-toggle-pill input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+.auto-advance-bar {
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  margin-bottom: 14px;
 }
 
 .badge {
@@ -1244,10 +1290,18 @@ th:first-child, td:first-child { text-align: left; }
 
         <div style="margin-top:6px">
           <label class="checkbox-row">
+            <input type="checkbox" id="liveAutoAdvance">
+            <span>Auto-advance after ranking (5 seconds)</span>
+          </label>
+          <small style="margin-left:26px">Automatically displays the leaderboard for 5 seconds after each round before advancing.</small>
+        </div>
+
+        <div style="margin-top:12px">
+          <label class="checkbox-row">
             <input type="checkbox" id="liveSaveSheet">
             <span>Optional: Also save player responses to a Google Sheet</span>
           </label>
-          <small style="margin-left:26px">Off by default. Multiplayer works without this, and you can export a CSV at the end.</small>
+          <small style="margin-left:26px">Off by default. Multiplayer works without this, and you can export CSV spreadsheets at the end.</small>
           <div id="liveSheetConfigWrap" class="hidden"></div>
         </div>
       </div>
@@ -1360,6 +1414,24 @@ th:first-child, td:first-child { text-align: left; }
 
 <!-- LIVE MULTIPLAYER HOST SCREEN (LOBBY / ROUND / LEADERBOARD / PODIUM) -->
 <section id="liveHost" class="hidden">
+  <!-- Host Display & Pacing Controls Bar -->
+  <div class="host-topbar">
+    <div class="hud-group">
+      <span class="badge">Host Screen</span>
+      <span class="hud-stat">Room PIN: <strong id="hostTopPin">-----</strong></span>
+    </div>
+    <div class="hud-group">
+      <label class="host-toggle-pill" title="Show round rankings for 5 seconds, then automatically move to the next question">
+        <input type="checkbox" id="hostAutoAdvanceToggle">
+        <span>Auto-advance (5s)</span>
+      </label>
+      <button type="button" class="icon-btn" id="hostFullscreenBtn" title="Toggle full-screen host display">
+        <span id="hostFsIcon">⛶</span>
+        <span id="hostFsLabel">Full Screen</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Host Lobby -->
   <div id="liveHostLobby" class="panel">
     <div class="pin-banner">
@@ -1432,6 +1504,16 @@ th:first-child, td:first-child { text-align: left; }
 
   <!-- Host Round Leaderboard -->
   <div id="liveHostLeaderboard" class="panel hidden">
+    <div id="lbAutoWrap" class="auto-advance-bar hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;font-size:0.84rem">
+        <span id="lbAutoText" style="font-weight:600;color:var(--accent)">Advancing in 5.0s…</span>
+        <button type="button" id="lbPauseAutoBtn" class="btn ghost sm" style="padding:4px 10px;font-size:0.78rem">Pause</button>
+      </div>
+      <div class="timer-track" style="margin-bottom:0">
+        <div class="timer-fill" id="lbAutoFill"></div>
+      </div>
+    </div>
+
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
         <span class="badge" id="lbRoundBadge">Round 1 Complete</span>
@@ -1483,7 +1565,8 @@ th:first-child, td:first-child { text-align: left; }
 
     <div class="row" style="margin-top:22px;justify-content:space-between">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" id="exportLiveCsvBtn" class="btn">Export Multiplayer CSV</button>
+        <button type="button" id="exportLiveCsvBtn" class="btn" title="One row per question per player">Export All Rounds CSV</button>
+        <button type="button" id="exportLiveSummaryCsvBtn" class="btn" title="One summary row per player">Export Player Summary CSV</button>
         <button type="button" id="playAgainLiveBtn" class="btn ghost">New Live Game</button>
       </div>
       <button type="button" id="exitLiveBtn" class="btn ghost">Back to Setup</button>
@@ -1609,7 +1692,10 @@ th:first-child, td:first-child { text-align: left; }
     </div>
 
     <div class="row" style="margin-top:22px;justify-content:space-between">
-      <button type="button" id="pExportCsvBtn" class="btn ghost">Export My CSV</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" id="pExportCsvBtn" class="btn ghost">Export My Rounds CSV</button>
+        <button type="button" id="pExportSummaryCsvBtn" class="btn ghost">Export My Summary CSV</button>
+      </div>
       <button type="button" id="pLeaveLiveBtn" class="btn">Done</button>
     </div>
   </div>
@@ -1754,7 +1840,7 @@ let liveJoinGasUrl = "";
 
 /* ---------- theme & audio preferences ---------- */
 const PREF_KEY = "isomatch_prefs_v1";
-let prefs = { theme: null, sound: true, kb: "sd", pace: "study", diff: "6", gasUrl: "" };
+let prefs = { theme: null, sound: true, kb: "sd", pace: "study", diff: "6", gasUrl: "", liveAutoAdvance: false };
 try {
   const saved = JSON.parse(localStorage.getItem(PREF_KEY) || "{}");
   prefs = { ...prefs, ...saved };
@@ -1848,6 +1934,12 @@ bindSegmented("diffGroup", "diff", val => $("customWrap").classList.toggle("hidd
 bindSegmented("kbGroup", "kb", applyKbUI);
 bindSegmented("paceGroup", "pace");
 $("customWrap").classList.toggle("hidden", prefs.diff !== "custom");
+$("liveAutoAdvance").checked = !!prefs.liveAutoAdvance;
+$("liveAutoAdvance").addEventListener("change", () => {
+  prefs.liveAutoAdvance = $("liveAutoAdvance").checked;
+  savePrefs();
+  sfx("click");
+});
 $("gasUrl").value = prefs.gasUrl || "";
 updateGasReadyBadge();
 $("gasUrl").addEventListener("input", () => {
@@ -1859,6 +1951,62 @@ $("gasUrl").addEventListener("input", () => {
 applyTheme();
 applySoundUI();
 applyKbUI();
+
+/* ---------- Host Full-Screen Control ---------- */
+function isHostFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.body.classList.contains("host-theater"));
+}
+
+function updateHostFullscreenUI() {
+  const active = isHostFullscreen();
+  $("hostFsIcon").textContent = active ? "✕" : "⛶";
+  $("hostFsLabel").textContent = active ? "Exit Full Screen" : "Full Screen";
+}
+
+async function toggleHostFullscreen() {
+  sfx("click");
+  const nativeFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (nativeFs || document.body.classList.contains("host-theater")) {
+    document.body.classList.remove("host-theater");
+    try {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } catch (e) {}
+    updateHostFullscreenUI();
+    return;
+  }
+
+  const el = document.documentElement;
+  try {
+    if (el.requestFullscreen) {
+      await el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    } else {
+      document.body.classList.add("host-theater");
+    }
+  } catch (e) {
+    // Fallback if browser/iframe blocks native Fullscreen API
+    document.body.classList.add("host-theater");
+  }
+  updateHostFullscreenUI();
+}
+
+function exitHostFullscreenIfActive() {
+  document.body.classList.remove("host-theater");
+  const nativeFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (nativeFs) {
+    try {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } catch (e) {}
+  }
+  updateHostFullscreenUI();
+}
+
+$("hostFullscreenBtn").onclick = toggleHostFullscreen;
+document.addEventListener("fullscreenchange", updateHostFullscreenUI);
+document.addEventListener("webkitfullscreenchange", updateHostFullscreenUI);
 
 /* ---------- Optional Google Sheet Config Placement (off by default) ---------- */
 function syncSheetOptionVisibility() {
@@ -2156,6 +2304,12 @@ function fitScale(cubes) {
 const show = id => ["setup", "trial", "results", "liveHost", "livePlayer"].forEach(s => $(s).classList.toggle("hidden", s !== id));
 const KEY = "mentalRotationTrials_v1";
 const COLS = ["mode", "room_pin", "participant", "date", "timestamp", "session_start", "practice", "trial", "n_cubes", "pair_type", "angle_deg", "axis", "response", "correct", "rt_ms"];
+const SUMMARY_COLS = [
+  "room_pin", "date", "rank", "total_players", "participant", "total_score",
+  "correct_rounds", "total_rounds", "accuracy_pct", "longest_run",
+  "fastest_correct_sec", "fastest_correct_ms", "fastest_round", "fastest_pair_type", "fastest_angle_deg",
+  "avg_correct_sec", "avg_correct_ms", "n_cubes", "axis", "time_limit_sec"
+];
 let store = [], saveOK = true;
 
 try {
@@ -2169,7 +2323,8 @@ function persist() {
 
 const pad = n => String(n).padStart(2, "0");
 const localDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const csvOf = rows => [COLS.join(","), ...rows.map(r => COLS.map(c => JSON.stringify(r[c] ?? "")).join(","))].join("\n");
+const csvWithCols = (cols, rows) => [cols.join(","), ...rows.map(r => cols.map(c => JSON.stringify(r[c] ?? "")).join(","))].join("\n");
+const csvOf = rows => csvWithCols(COLS, rows);
 
 function storeInfo() {
   const real = store.filter(r => !r.practice);
@@ -2301,6 +2456,7 @@ if (isSoloParticipantMode) {
 
 $("joinNavBtn").onclick = () => {
   sfx("click");
+  exitHostFullscreenIfActive();
   stopLiveLoops();
   show("setup");
   const paramGas = (urlParams.get("gas") || "").trim();
@@ -2542,6 +2698,7 @@ $("start").onclick = beginSession;
 $("partStart").onclick = beginSession;
 
 $("homeBtn").onclick = () => {
+  exitHostFullscreenIfActive();
   stopAnim();
   stopLiveLoops();
   clearTimeout(tmo);
@@ -3279,7 +3436,16 @@ let liveHostState = null;
 let livePlayerState = null;
 let liveRelay = null;
 let liveRoundRaf = null;
+let liveLbAutoRaf = null;
+let liveLbAutoTimer = null;
 let confettiRaf = null;
+
+function cancelLeaderboardAutoAdvance() {
+  cancelAnimationFrame(liveLbAutoRaf);
+  clearTimeout(liveLbAutoTimer);
+  liveLbAutoRaf = null;
+  liveLbAutoTimer = null;
+}
 
 function stopLiveLoops() {
   if (liveRelay) {
@@ -3287,6 +3453,7 @@ function stopLiveLoops() {
     liveRelay = null;
   }
   cancelAnimationFrame(liveRoundRaf);
+  cancelLeaderboardAutoAdvance();
   cancelAnimationFrame(confettiRaf);
   stopAnim();
 }
@@ -3335,12 +3502,61 @@ function getSortedHostPlayers() {
   return [...liveHostState.playersMap.values()].sort((a, b) => (b.score || 0) - (a.score || 0));
 }
 
+function buildPlayerSummaryRow(p, rank, totalPlayers, liveCfg, roomPin) {
+  const ans = Array.isArray(p.answers) ? p.answers : [];
+  const totalRounds = (liveCfg && liveCfg.totalRounds) || ans.length;
+  const okRounds = ans.filter(a => a.correct === 1);
+  const timedOk = okRounds.filter(a => typeof a.rt_ms === "number" && a.rt_ms > 0);
+  const fastest = timedOk.length
+    ? timedOk.reduce((best, cur) => cur.rt_ms < best.rt_ms ? cur : best, timedOk[0])
+    : null;
+  const avgCorrectMs = timedOk.length
+    ? timedOk.reduce((sum, a) => sum + a.rt_ms, 0) / timedOk.length
+    : NaN;
+  const accPct = totalRounds > 0 ? Math.round((okRounds.length / totalRounds) * 100) : 0;
+
+  let calcStreak = 0, maxCalcStreak = 0;
+  for (const a of ans) {
+    if (a.correct === 1) {
+      calcStreak++;
+      if (calcStreak > maxCalcStreak) maxCalcStreak = calcStreak;
+    } else {
+      calcStreak = 0;
+    }
+  }
+  const longestRun = Math.max(p.bestStreak || 0, maxCalcStreak);
+
+  return {
+    room_pin: roomPin,
+    date: localDate(new Date()),
+    rank,
+    total_players: totalPlayers,
+    participant: p.name,
+    total_score: p.score || 0,
+    correct_rounds: okRounds.length,
+    total_rounds: totalRounds,
+    accuracy_pct: accPct,
+    longest_run: longestRun,
+    fastest_correct_sec: fastest ? +(fastest.rt_ms / 1000).toFixed(2) : "",
+    fastest_correct_ms: fastest ? Math.round(fastest.rt_ms * 10) / 10 : "",
+    fastest_round: fastest ? fastest.trial : "",
+    fastest_pair_type: fastest ? fastest.pair_type : "",
+    fastest_angle_deg: fastest ? fastest.angle_deg : "",
+    avg_correct_sec: !isNaN(avgCorrectMs) ? +(avgCorrectMs / 1000).toFixed(2) : "",
+    avg_correct_ms: !isNaN(avgCorrectMs) ? Math.round(avgCorrectMs * 10) / 10 : "",
+    n_cubes: (liveCfg && liveCfg.nCubes) ?? "",
+    axis: (liveCfg && liveCfg.axis) ?? "",
+    time_limit_sec: (liveCfg && liveCfg.timeLimit) ?? ""
+  };
+}
+
 /* Host: Create Live Room */
 $("createLiveBtn").onclick = async () => {
   sfx("click");
   const clamp = (v, a, b, d) => isNaN(v) ? d : Math.min(b, Math.max(a, v));
   const useSheet = $("liveSaveSheet").checked;
   const gasUrl = useSheet ? $("gasUrl").value.trim() : "";
+  const autoAdvance = $("liveAutoAdvance").checked;
 
   const pin = makeRoomPin();
   const liveCfg = {
@@ -3349,6 +3565,7 @@ $("createLiveBtn").onclick = async () => {
     nCubes: Math.round(clamp(+$("liveCubes").value, 4, 24, 6)),
     axis: $("liveAxis").value,
     anglesRaw: "0-180/15",
+    autoAdvance,
     gasUrl
   };
 
@@ -3402,13 +3619,15 @@ $("createLiveBtn").onclick = async () => {
     const joinUrl = `${base}?${params.toString()}`;
     liveHostState.joinUrl = joinUrl;
 
+    $("hostTopPin").textContent = pin;
+    $("hostAutoAdvanceToggle").checked = autoAdvance;
     $("hostPinDisplay").textContent = pin;
     $("hostHudPin").textContent = pin;
     $("hostJoinUrlText").textContent = window.location.protocol !== "file:" ? joinUrl : "";
     const qrOk = window.location.protocol !== "file:" && renderQrToCanvas($("qrCanvas"), joinUrl);
     $("qrCardWrap").classList.toggle("hidden", !qrOk);
 
-    $("hostRoomStatus").textContent = `${liveCfg.totalRounds} rounds · ${liveCfg.timeLimit}s per round · ${liveCfg.nCubes} cubes${gasUrl ? " · Optional Google Sheet sync enabled" : ""}`;
+    $("hostRoomStatus").textContent = `${liveCfg.totalRounds} rounds · ${liveCfg.timeLimit}s per round · ${liveCfg.nCubes} cubes${autoAdvance ? " · 5s auto-advance" : ""}${gasUrl ? " · Google Sheet sync enabled" : ""}`;
     $("lobbyPollBadge").className = "status-pill ok";
     $("lobbyPollBadge").textContent = "● Live & ready";
 
@@ -3468,6 +3687,7 @@ function renderHostLobbyPlayers(players) {
 
 function startHostRound(roundNum) {
   if (!liveHostState) return;
+  cancelLeaderboardAutoAdvance();
   sfx("click");
   const now = Date.now();
   liveHostState.phase = "question";
@@ -3518,6 +3738,90 @@ function finishHostRound() {
   renderHostLeaderboard();
 }
 
+function advanceFromHostLeaderboard() {
+  if (!liveHostState || liveHostState.phase !== "leaderboard") return;
+  cancelLeaderboardAutoAdvance();
+  if (liveHostState.round >= liveHostState.config.totalRounds) {
+    showVictoryCeremony();
+  } else {
+    startHostRound(liveHostState.round + 1);
+  }
+}
+
+function startLeaderboardAutoAdvance() {
+  cancelLeaderboardAutoAdvance();
+  if (!liveHostState || liveHostState.phase !== "leaderboard" || !liveHostState.config.autoAdvance) {
+    $("lbAutoWrap").classList.add("hidden");
+    return;
+  }
+
+  const rNum = liveHostState.round;
+  const totalRounds = liveHostState.config.totalRounds;
+  const isFinal = rNum >= totalRounds;
+  const destLabel = isFinal ? "Opening Victory Ceremony" : `Advancing to Round ${rNum + 1}`;
+  const durationMs = 5000;
+  const startPerf = performance.now();
+
+  $("lbAutoWrap").classList.remove("hidden");
+  const textEl = $("lbAutoText");
+  const fillEl = $("lbAutoFill");
+  fillEl.style.backgroundColor = "var(--accent)";
+  fillEl.style.transform = "scaleX(1)";
+
+  liveLbAutoTimer = setTimeout(() => {
+    advanceFromHostLeaderboard();
+  }, durationMs + 60);
+
+  (function tick(now) {
+    if (!liveHostState || liveHostState.phase !== "leaderboard" || !liveHostState.config.autoAdvance) {
+      $("lbAutoWrap").classList.add("hidden");
+      return;
+    }
+    const elapsed = now - startPerf;
+    const remMs = Math.max(0, durationMs - elapsed);
+    const remRatio = remMs / durationMs;
+    fillEl.style.transform = `scaleX(${remRatio})`;
+    textEl.textContent = `${destLabel} in ${(remMs / 1000).toFixed(1)}s…`;
+
+    if (remMs <= 0) {
+      advanceFromHostLeaderboard();
+    } else {
+      liveLbAutoRaf = requestAnimationFrame(tick);
+    }
+  })(startPerf);
+}
+
+$("hostAutoAdvanceToggle").addEventListener("change", () => {
+  const enabled = $("hostAutoAdvanceToggle").checked;
+  prefs.liveAutoAdvance = enabled;
+  $("liveAutoAdvance").checked = enabled;
+  savePrefs();
+  sfx("click");
+  if (liveHostState) {
+    liveHostState.config.autoAdvance = enabled;
+    if (liveHostState.phase === "leaderboard") {
+      if (enabled) startLeaderboardAutoAdvance();
+      else {
+        cancelLeaderboardAutoAdvance();
+        $("lbAutoWrap").classList.add("hidden");
+      }
+    }
+  }
+});
+
+$("lbPauseAutoBtn").onclick = () => {
+  sfx("click");
+  cancelLeaderboardAutoAdvance();
+  $("lbAutoWrap").classList.add("hidden");
+  $("hostAutoAdvanceToggle").checked = false;
+  $("liveAutoAdvance").checked = false;
+  prefs.liveAutoAdvance = false;
+  savePrefs();
+  if (liveHostState) {
+    liveHostState.config.autoAdvance = false;
+  }
+};
+
 function renderHostLeaderboard() {
   showHostSubView("liveHostLeaderboard");
   const rNum = liveHostState.round;
@@ -3540,47 +3844,42 @@ function renderHostLeaderboard() {
   const list = $("hostLbList");
   if (!sorted.length) {
     list.innerHTML = `<div class="mute">No players in this room yet.</div>`;
-    return;
+  } else {
+    list.innerHTML = sorted.map((p, i) => {
+      const rank = i + 1;
+      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+      const answeredThis = p.lastRound === rNum;
+      const pts = answeredThis ? (p.lastPts || 0) : 0;
+      const rtText = answeredThis && p.lastRtMs ? ` · ${(p.lastRtMs / 1000).toFixed(2)}s` : "";
+      const streakHtml = (p.streak || 0) >= 2 ? `<span class="badge" style="font-size:0.7rem">🔥 ${p.streak}</span>` : "";
+      const barPct = Math.round(((p.score || 0) / topScore) * 100);
+
+      return `
+        <div class="lb-row ${rank === 1 ? "top1" : ""}">
+          <div class="lb-rank">${medal}</div>
+          <div>
+            <div class="lb-name">${escapeHtml(p.name)} ${streakHtml}</div>
+            <div class="lb-bar-wrap"><div class="lb-bar-fill" style="width:${barPct}%"></div></div>
+          </div>
+          <div class="lb-score-col">
+            <div class="lb-total">${(p.score || 0).toLocaleString()} pts</div>
+            <div class="lb-delta" style="color:${pts > 0 ? "var(--ok)" : "var(--mute)"}">
+              ${pts > 0 ? `+${pts} pts${rtText}` : (answeredThis ? `0 pts${rtText}` : "No answer")}
+            </div>
+          </div>
+        </div>`;
+    }).join("");
   }
 
-  list.innerHTML = sorted.map((p, i) => {
-    const rank = i + 1;
-    const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
-    const answeredThis = p.lastRound === rNum;
-    const pts = answeredThis ? (p.lastPts || 0) : 0;
-    const rtText = answeredThis && p.lastRtMs ? ` · ${(p.lastRtMs / 1000).toFixed(2)}s` : "";
-    const streakHtml = (p.streak || 0) >= 2 ? `<span class="badge" style="font-size:0.7rem">🔥 ${p.streak}</span>` : "";
-    const barPct = Math.round(((p.score || 0) / topScore) * 100);
-
-    return `
-      <div class="lb-row ${rank === 1 ? "top1" : ""}">
-        <div class="lb-rank">${medal}</div>
-        <div>
-          <div class="lb-name">${escapeHtml(p.name)} ${streakHtml}</div>
-          <div class="lb-bar-wrap"><div class="lb-bar-fill" style="width:${barPct}%"></div></div>
-        </div>
-        <div class="lb-score-col">
-          <div class="lb-total">${(p.score || 0).toLocaleString()} pts</div>
-          <div class="lb-delta" style="color:${pts > 0 ? "var(--ok)" : "var(--mute)"}">
-            ${pts > 0 ? `+${pts} pts${rtText}` : (answeredThis ? `0 pts${rtText}` : "No answer")}
-          </div>
-        </div>
-      </div>`;
-  }).join("");
+  startLeaderboardAutoAdvance();
 }
 
 $("startLiveRoundBtn").onclick = () => startHostRound(1);
 $("endRoundNowBtn").onclick = () => finishHostRound();
-$("hostNextRoundBtn").onclick = () => {
-  if (!liveHostState) return;
-  if (liveHostState.round >= liveHostState.config.totalRounds) {
-    showVictoryCeremony();
-  } else {
-    startHostRound(liveHostState.round + 1);
-  }
-};
+$("hostNextRoundBtn").onclick = () => advanceFromHostLeaderboard();
 
 $("cancelLiveBtn").onclick = () => {
+  exitHostFullscreenIfActive();
   if (liveHostState && liveRelay) {
     liveHostState.phase = "ended";
     broadcastHostRoomState();
@@ -3590,9 +3889,10 @@ $("cancelLiveBtn").onclick = () => {
   show("setup");
 };
 
-/* Victory Ceremony (1st, 2nd, 3rd Podium + Confetti + CSV Export) */
+/* Victory Ceremony (1st, 2nd, 3rd Podium + Confetti + Dual CSV Exports) */
 function showVictoryCeremony() {
   if (!liveHostState) return;
+  cancelLeaderboardAutoAdvance();
   liveHostState.phase = "podium";
   sfx("fanfare");
   broadcastHostRoomState();
@@ -3619,15 +3919,14 @@ function showVictoryCeremony() {
 
   let tbl = `<tr><th>Rank</th><th>Player</th><th>Total Score</th><th>Correct</th><th>Longest Run</th><th>Fastest</th></tr>`;
   sorted.forEach((p, idx) => {
-    const ans = Array.isArray(p.answers) ? p.answers : [];
-    const okAns = ans.filter(a => a.correct === 1 && typeof a.rt_ms === "number" && a.rt_ms > 0);
-    const fastRt = okAns.length ? `${(Math.min(...okAns.map(a => a.rt_ms)) / 1000).toFixed(2)}s` : "–";
+    const sum = buildPlayerSummaryRow(p, idx + 1, sorted.length, liveHostState.config, liveHostState.pin);
+    const fastRt = sum.fastest_correct_sec !== "" ? `${Number(sum.fastest_correct_sec).toFixed(2)}s` : "–";
     tbl += `<tr>
-      <td>${idx + 1}</td>
+      <td>${sum.rank}</td>
       <td style="text-align:left;font-weight:600">${escapeHtml(p.name)}</td>
-      <td><strong>${(p.score || 0).toLocaleString()}</strong></td>
-      <td>${okAns.length} / ${liveHostState.config.totalRounds}</td>
-      <td>${p.bestStreak || 0}</td>
+      <td><strong>${sum.total_score.toLocaleString()}</strong></td>
+      <td>${sum.correct_rounds} / ${sum.total_rounds}</td>
+      <td>${sum.longest_run}</td>
       <td>${fastRt}</td>
     </tr>`;
   });
@@ -3676,6 +3975,7 @@ function launchConfetti(canvas) {
   })(start);
 }
 
+/* Option 1: One row per question per player */
 $("exportLiveCsvBtn").onclick = () => {
   if (!liveHostState) return;
   const rows = [];
@@ -3700,7 +4000,17 @@ $("exportLiveCsvBtn").onclick = () => {
       });
     }
   }
-  download(`isomatch_live_${liveHostState.pin}_${localDate(new Date())}.csv`, csvOf(rows), "text/csv");
+  download(`isomatch_live_${liveHostState.pin}_rounds_${localDate(new Date())}.csv`, csvOf(rows), "text/csv");
+};
+
+/* Option 2: Player summary spreadsheet (one row per player) */
+$("exportLiveSummaryCsvBtn").onclick = () => {
+  if (!liveHostState) return;
+  const sorted = getSortedHostPlayers();
+  const rows = sorted.map((p, idx) =>
+    buildPlayerSummaryRow(p, idx + 1, sorted.length, liveHostState.config, liveHostState.pin)
+  );
+  download(`isomatch_live_${liveHostState.pin}_summary_${localDate(new Date())}.csv`, csvWithCols(SUMMARY_COLS, rows), "text/csv");
 };
 
 $("playAgainLiveBtn").onclick = () => {
@@ -3711,6 +4021,7 @@ $("playAgainLiveBtn").onclick = () => {
 };
 
 $("exitLiveBtn").onclick = () => {
+  exitHostFullscreenIfActive();
   stopLiveLoops();
   liveHostState = null;
   show("setup");
@@ -3791,7 +4102,6 @@ $("joinGameBtn").onclick = async () => {
       });
 
       relay.subscribe(`isomatch/v1/room/${pin}/state`);
-      // Actively ping the host so even if a broker dropped a retained message, the host immediately rebroadcasts
       relay.publish(`isomatch/v1/room/${pin}/discover`, { ts: Date.now() }, false);
       pingInterval = setInterval(() => {
         if (!done) {
@@ -3821,6 +4131,8 @@ $("joinGameBtn").onclick = async () => {
       lastRtMs: null,
       lastPts: 0,
       answers: [],
+      finalRank: 1,
+      finalTotalPlayers: 1,
       currentRoundShown: 0,
       currentPhaseShown: "",
       roundStartPerf: 0,
@@ -4076,42 +4388,35 @@ function enterPlayerPodium(room, standings) {
   const rankIdx = board.findIndex(p => p.id === st.id);
   const rank = rankIdx >= 0 ? rankIdx + 1 : board.length;
   const totalPlayers = Math.max(1, board.length);
+  st.finalRank = rank;
+  st.finalTotalPlayers = totalPlayers;
   const ord = ordinalRank(rank);
+
+  const sum = buildPlayerSummaryRow(st, rank, totalPlayers, room.config, st.pin);
 
   $("pFinalMedal").textContent = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "🎉";
   $("pFinalRankPill").textContent = `Rank #${rank} of ${totalPlayers} player${totalPlayers === 1 ? "" : "s"}`;
   $("pFinalRankTitle").textContent = rank === 1 ? "1st Place Champion!" : `${ord} Place!`;
 
-  const totalRounds = (room.config && room.config.totalRounds) || st.answers.length;
-  const okRounds = st.answers.filter(a => a.correct === 1);
-  const timedOk = okRounds.filter(a => typeof a.rt_ms === "number" && a.rt_ms > 0);
-  const fastest = timedOk.length
-    ? timedOk.reduce((best, cur) => cur.rt_ms < best.rt_ms ? cur : best, timedOk[0])
-    : null;
-  const avgCorrectMs = timedOk.length
-    ? timedOk.reduce((sum, a) => sum + a.rt_ms, 0) / timedOk.length
-    : NaN;
-  const accPct = totalRounds > 0 ? Math.round((okRounds.length / totalRounds) * 100) : 0;
-
-  $("pFinalSummary").textContent = `${st.name} · ${st.score.toLocaleString()} total points across ${totalRounds} round${totalRounds === 1 ? "" : "s"}`;
+  $("pFinalSummary").textContent = `${st.name} · ${sum.total_score.toLocaleString()} total points across ${sum.total_rounds} round${sum.total_rounds === 1 ? "" : "s"}`;
 
   $("pKpiRank").textContent = `#${rank}`;
   $("pKpiRankSub").textContent = `of ${totalPlayers} player${totalPlayers === 1 ? "" : "s"}`;
-  $("pKpiScore").textContent = st.score.toLocaleString();
-  $("pKpiStreak").textContent = st.bestStreak >= 3 ? `${st.bestStreak} 🔥` : String(st.bestStreak || 0);
+  $("pKpiScore").textContent = sum.total_score.toLocaleString();
+  $("pKpiStreak").textContent = sum.longest_run >= 3 ? `${sum.longest_run} 🔥` : String(sum.longest_run);
 
-  if (fastest) {
-    $("pKpiFastest").textContent = `${(fastest.rt_ms / 1000).toFixed(2)}s`;
-    const pairLabel = fastest.pair_type === "same" ? "Same" : "Mirror";
-    $("pKpiFastestSub").textContent = `Round ${fastest.trial} · ${pairLabel} (${fastest.angle_deg}°)`;
+  if (sum.fastest_correct_sec !== "") {
+    $("pKpiFastest").textContent = `${Number(sum.fastest_correct_sec).toFixed(2)}s`;
+    const pairLabel = sum.fastest_pair_type === "same" ? "Same" : "Mirror";
+    $("pKpiFastestSub").textContent = `Round ${sum.fastest_round} · ${pairLabel} (${sum.fastest_angle_deg}°)`;
   } else {
     $("pKpiFastest").textContent = "–";
     $("pKpiFastestSub").textContent = "No correct rounds";
   }
 
-  $("pKpiAcc").textContent = totalRounds > 0 ? `${accPct}%` : "–";
-  $("pKpiAccSub").textContent = `${okRounds.length} / ${totalRounds} correct`;
-  $("pKpiAvgRt").textContent = !isNaN(avgCorrectMs) ? `${(avgCorrectMs / 1000).toFixed(2)}s` : "–";
+  $("pKpiAcc").textContent = sum.total_rounds > 0 ? `${sum.accuracy_pct}%` : "–";
+  $("pKpiAccSub").textContent = `${sum.correct_rounds} / ${sum.total_rounds} correct`;
+  $("pKpiAvgRt").textContent = sum.avg_correct_sec !== "" ? `${Number(sum.avg_correct_sec).toFixed(2)}s` : "–";
 
   let tbl = `<tr><th>Round</th><th>Structure Pair</th><th>Your Answer</th><th>Result</th><th>Speed</th><th>Points</th></tr>`;
   if (!st.answers.length) {
@@ -4121,7 +4426,7 @@ function enterPlayerPodium(room, standings) {
       const pairDesc = `${a.pair_type === "same" ? "Same" : "Mirror"} · ${a.angle_deg}°`;
       const respLabel = a.response === "same" ? "Same" : a.response === "different" ? "Different" : "Time's up";
       const isOk = a.correct === 1;
-      const isFastest = fastest && a.trial === fastest.trial;
+      const isFastest = sum.fastest_round !== "" && a.trial === sum.fastest_round;
       const resHtml = isOk
         ? `<span style="color:var(--ok);font-weight:700">✓ Correct</span>`
         : `<span style="color:var(--bad);font-weight:600">✗ ${a.response === "timeout" ? "Missed" : "Incorrect"}</span>`;
@@ -4167,7 +4472,14 @@ $("pExportCsvBtn").onclick = () => {
     correct: a.correct,
     rt_ms: a.rt_ms ?? ""
   }));
-  download(`isomatch_${st.pin}_${st.name}_${localDate(new Date())}.csv`, csvOf(rows), "text/csv");
+  download(`isomatch_${st.pin}_${st.name}_rounds_${localDate(new Date())}.csv`, csvOf(rows), "text/csv");
+};
+
+$("pExportSummaryCsvBtn").onclick = () => {
+  if (!livePlayerState) return;
+  const st = livePlayerState;
+  const row = buildPlayerSummaryRow(st, st.finalRank || 1, st.finalTotalPlayers || 1, st.config, st.pin);
+  download(`isomatch_${st.pin}_${st.name}_summary_${localDate(new Date())}.csv`, csvWithCols(SUMMARY_COLS, [row]), "text/csv");
 };
 
 $("pLeaveLiveBtn").onclick = () => {
