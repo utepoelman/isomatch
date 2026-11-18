@@ -341,7 +341,7 @@ details.advanced summary::-webkit-details-marker { display: none; }
 details.advanced summary:hover { color: var(--ink); }
 details.advanced[open] summary { margin-bottom: 16px; color: var(--ink); }
 
-/* Host Share Box & Step-by-Step Guide */
+/* Optional Share / Sheet Box */
 .share-box {
   margin-top: 14px;
   padding: 16px;
@@ -381,16 +381,6 @@ details.advanced[open] summary { margin-bottom: 16px; color: var(--ink); }
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--accent);
-}
-
-.tip-callout {
-  margin: 8px 0 0;
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: var(--gold-soft);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  font-size: 0.8rem;
-  color: var(--ink);
 }
 
 .code-block {
@@ -697,13 +687,13 @@ canvas.obj {
   vertical-align: -1px;
 }
 
-/* Live Multiplayer Lobby, Leaderboard & Podium */
+/* Live Multiplayer Lobby, QR Code, Leaderboard & Podium */
 .pin-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 18px;
   padding: 18px 22px;
   border-radius: var(--radius);
   background: var(--bg);
@@ -712,9 +702,28 @@ canvas.obj {
 }
 
 .pin-code {
-  font: 800 2.3rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 800 2.5rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0.14em;
   color: var(--accent);
+}
+
+.qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.qr-card span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .player-chips {
@@ -1047,7 +1056,7 @@ th:first-child, td:first-child { text-align: left; }
       <span class="badge">Live Multiplayer Game</span>
       <button type="button" id="backFromJoin" class="btn ghost sm">← Back</button>
     </div>
-    <div id="joinSaveNotice" class="status-pill ok hidden" style="margin-bottom:14px">☁️ Your results will be saved in the host's spreadsheet.</div>
+    <div id="joinSaveNotice" class="status-pill ok hidden" style="margin-bottom:14px">☁️ Your results will also be saved in the host's spreadsheet.</div>
     <p class="mute" style="margin-bottom:16px">Enter the Room PIN shown on the host's screen and your player nickname.</p>
     <div class="grid" style="max-width:540px">
       <div>
@@ -1070,11 +1079,11 @@ th:first-child, td:first-child { text-align: left; }
     <div class="mode-tabs" id="setupModeTabs">
       <button type="button" class="mode-tab active" data-mode="solo">
         Solo &amp; Individual Study
-        <span>Self-paced play or individual data links</span>
+        <span>Self-paced play or individual study links</span>
       </button>
       <button type="button" class="mode-tab" data-mode="live">
         🏆 Host Live Multiplayer
-        <span>Synchronized rounds, leaderboard &amp; podium</span>
+        <span>Ready to play across devices — no setup required</span>
       </button>
     </div>
 
@@ -1113,7 +1122,7 @@ th:first-child, td:first-child { text-align: left; }
         </div>
 
         <details class="advanced">
-          <summary>▸ Custom &amp; Session Settings</summary>
+          <summary>▸ Custom &amp; Study Link Settings</summary>
           <div class="grid">
             <div>
               <label for="pid">Player / Participant ID</label>
@@ -1148,12 +1157,32 @@ th:first-child, td:first-child { text-align: left; }
               <input type="number" id="timeout" min="0" max="120" value="0">
             </div>
           </div>
+
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+              <strong style="font-size:0.86rem">Individual Study Invite Link</strong>
+              <button type="button" id="genLink" class="btn sm">Generate Participant Link</button>
+            </div>
+            <div id="shareResult" class="hidden">
+              <div class="inline-input-row">
+                <input type="text" id="shareUrl" readonly>
+                <button type="button" id="copyLink" class="btn ghost sm">Copy Link</button>
+              </div>
+              <small id="shareNote" style="margin-top:6px"></small>
+            </div>
+
+            <label class="checkbox-row" style="margin-top:14px">
+              <input type="checkbox" id="soloSheetToggle">
+              <span>Optional: Collect responses in a Google Sheet</span>
+            </label>
+            <div id="soloSheetConfigWrap" class="hidden"></div>
+          </div>
         </details>
       </div>
 
       <!-- LIVE MULTIPLAYER HOST SETTINGS -->
       <div id="liveSettingsBlock" class="hidden">
-        <div class="grid" style="margin-bottom:18px">
+        <div class="grid" style="margin-bottom:16px">
           <div>
             <label for="liveRounds">Number of Rounds</label>
             <input type="number" id="liveRounds" min="1" max="50" value="8">
@@ -1191,92 +1220,57 @@ th:first-child, td:first-child { text-align: left; }
           </div>
         </div>
 
-        <div style="margin-bottom:6px">
+        <div style="margin-top:6px">
           <label class="checkbox-row">
-            <input type="checkbox" id="liveSaveSheet" checked>
-            <span>Also save all player responses to my Google Sheet (requires Apps Script URL below)</span>
+            <input type="checkbox" id="liveSaveSheet">
+            <span>Optional: Also save player responses to a Google Sheet</span>
           </label>
-          <small style="margin-left:26px">You can also export all multiplayer results as a CSV file at the end of the game without a spreadsheet.</small>
+          <small style="margin-left:26px">Off by default. Multiplayer works without this, and you can export a CSV at the end.</small>
+          <div id="liveSheetConfigWrap" class="hidden"></div>
         </div>
       </div>
 
-      <!-- SHARED APPS SCRIPT & LINK SECTION -->
-      <details class="advanced" id="hostShareDetails">
-        <summary id="shareDetailsSummary">▸ Share with Participants &amp; Google Sheets Sync (Apps Script)</summary>
-        <div>
-          <label for="gasUrl">Google Apps Script Web App URL</label>
-          <div class="inline-input-row">
-            <input type="url" id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec">
-            <button type="button" id="testGas" class="btn ghost sm">Test</button>
-            <button type="button" id="toggleScript" class="btn ghost sm">How to Get URL &amp; Code</button>
-          </div>
-          <small id="gasStatus">New to Google Apps Script? Click <strong>How to Get URL &amp; Code</strong> for a beginner step-by-step guide.</small>
-
-          <div id="scriptGuide" class="share-box hidden">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-              <strong style="font-size:0.92rem">Step-by-Step: How to Get Your Google Apps Script Web App URL</strong>
-              <button type="button" id="copyScript" class="btn sm">Copy Script Code</button>
-            </div>
-            <p class="mute" style="font-size:0.83rem;margin-bottom:10px">No coding experience needed—this takes about 2 minutes and only needs to be done once:</p>
-
-            <ol class="setup-steps">
-              <li>
-                <strong>Create a Google Sheet:</strong> Open <a href="https://sheets.google.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">sheets.google.com</a> and click <strong>Blank spreadsheet</strong>. Name it anything you like (e.g., <em>IsoMatch Results</em>). Leave the cells empty—column headers will be added automatically.
-              </li>
-              <li>
-                <strong>Open the Script Editor:</strong> In the top menu bar of your new Google Sheet, click <strong>Extensions</strong> → <strong>Apps Script</strong>. A new browser tab will open.
-              </li>
-              <li>
-                <strong>Paste the Script Below:</strong> In the editor window, click inside the text area, select everything (<code>Ctrl+A</code> on Windows or <code>Cmd+A</code> on Mac), and press <strong>Delete</strong> so it is completely blank. Click <strong>Copy Script Code</strong>, paste it into the editor (<code>Ctrl+V</code> or <code>Cmd+V</code>), and click the <strong>Save</strong> floppy-disk icon at the top (or press <code>Ctrl+S</code> / <code>Cmd+S</code>).
-              </li>
-              <li>
-                <strong>Deploy as a Web App:</strong>
-                <ul>
-                  <li>Click the blue <strong>Deploy</strong> button in the top-right corner, then click <strong>New deployment</strong>.</li>
-                  <li>Next to <em>"Select type"</em>, click the <strong>gear icon (⚙️)</strong> and choose <strong>Web app</strong>.</li>
-                  <li>Set <strong>Execute as</strong> to <strong>Me (your email address)</strong>.</li>
-                  <li>Set <strong>Who has access</strong> to <strong>Anyone</strong> <em>(important: this lets players connect from their own devices without needing a Google login)</em>.</li>
-                  <li>Click <strong>Deploy</strong>.</li>
-                </ul>
-              </li>
-              <li>
-                <strong>Approve Permissions (One-Time Screen):</strong>
-                <ul>
-                  <li>Click <strong>Authorize access</strong> and select your Google account.</li>
-                  <li>Google will show a screen saying <em>"Google hasn't verified this app."</em>
-                    <div class="tip-callout">
-                      <strong>Don't worry—this is normal!</strong> Google shows this screen for every personal script you create yourself. Click <strong>Advanced</strong> (bottom-left), then click <strong>Go to Untitled project (unsafe)</strong> at the bottom, and click <strong>Allow</strong>.
-                    </div>
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <strong>Copy &amp; Test Your URL:</strong> Copy the <strong>Web app URL</strong> (starts with <code>https://script.google.com/macros/s/</code> and ends with <code>/exec</code>), paste it into the box above, and click <strong>Test</strong>.
-              </li>
-            </ol>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
-              <span style="font-size:0.78rem;font-weight:600;color:var(--mute)">Apps Script Code (Code.gs)</span>
-              <button type="button" id="copyScript2" class="btn ghost sm">Copy Script Code</button>
-            </div>
-            <div class="code-block" id="appsScriptCode"></div>
-          </div>
-
-          <div id="soloLinkBox" class="share-box">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-              <strong style="font-size:0.86rem">Individual Study Invite Link</strong>
-              <button type="button" id="genLink" class="btn sm">Generate Participant Link</button>
-            </div>
-            <div id="shareResult" class="hidden">
-              <div class="inline-input-row">
-                <input type="text" id="shareUrl" readonly>
-                <button type="button" id="copyLink" class="btn ghost sm">Copy Link</button>
-              </div>
-              <small id="shareNote" style="margin-top:6px"></small>
-            </div>
-          </div>
+      <!-- OPTIONAL APPS SCRIPT CONFIG CARD (moved dynamically when checkbox is enabled) -->
+      <div id="gasSectionContainer" class="share-box hidden" style="margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+          <label for="gasUrl" style="margin:0">Google Apps Script Web App URL</label>
+          <span id="gasReadyBadge" class="status-pill">Optional</span>
         </div>
-      </details>
+        <div class="inline-input-row">
+          <input type="url" id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec">
+          <button type="button" id="testGas" class="btn ghost sm">Test</button>
+          <button type="button" id="toggleScript" class="btn ghost sm">Setup Guide &amp; Code</button>
+        </div>
+        <small id="gasStatus">Paste your deployed Apps Script Web App URL to automatically append round rows to a Google Sheet.</small>
+
+        <div id="scriptGuide" class="share-box hidden" style="background:var(--panel)">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <strong style="font-size:0.92rem">Optional: Connect a Google Sheet via Apps Script</strong>
+            <button type="button" id="copyScript" class="btn sm">Copy Script Code</button>
+          </div>
+
+          <ol class="setup-steps">
+            <li>
+              <strong>Create a Google Sheet:</strong> Open <a href="https://sheets.google.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">sheets.google.com</a> and click <strong>Blank spreadsheet</strong>.
+            </li>
+            <li>
+              <strong>Open the Script Editor:</strong> Click <strong>Extensions</strong> → <strong>Apps Script</strong>.
+            </li>
+            <li>
+              <strong>Paste the Script Below:</strong> Replace the template code with the script below and click <strong>Save</strong>.
+            </li>
+            <li>
+              <strong>Deploy as a Web App:</strong> Click <strong>Deploy</strong> → <strong>New deployment</strong> → gear icon (⚙️) → <strong>Web app</strong> → set <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong> → click <strong>Deploy</strong> and copy the <code>/exec</code> URL above.
+            </li>
+          </ol>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:10px">
+            <span style="font-size:0.78rem;font-weight:600;color:var(--mute)">Apps Script Code (Code.gs)</span>
+            <button type="button" id="copyScript2" class="btn ghost sm">Copy Script Code</button>
+          </div>
+          <div class="code-block" id="appsScriptCode"></div>
+        </div>
+      </div>
 
       <div class="row" style="margin-top:22px">
         <button id="start" type="button" class="btn large">Start Game</button>
@@ -1347,14 +1341,19 @@ th:first-child, td:first-child { text-align: left; }
   <!-- Host Lobby -->
   <div id="liveHostLobby" class="panel">
     <div class="pin-banner">
-      <div>
+      <div style="flex:1 1 280px">
         <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--mute)">Game Room PIN</div>
         <div class="pin-code" id="hostPinDisplay">-----</div>
+        <p class="mute" style="font-size:0.84rem;margin:8px 0 0">Players can open this page on any device, tap <strong>Join Live</strong>, and enter the PIN above—or scan the QR code.</p>
         <small id="hostJoinUrlText" style="word-break:break-all;margin-top:6px"></small>
+        <div class="row" style="margin-top:12px">
+          <button type="button" id="copyLiveLinkBtn" class="btn sm">Copy Player Join Link</button>
+          <button type="button" id="openTestPlayerBtn" class="btn ghost sm">+ Open Test Player Tab</button>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
-        <button type="button" id="copyLiveLinkBtn" class="btn sm">Copy Player Join Link</button>
-        <button type="button" id="openTestPlayerBtn" class="btn ghost sm">+ Open Test Player Tab</button>
+      <div class="qr-card" id="qrCardWrap">
+        <canvas id="qrCanvas" width="164" height="164"></canvas>
+        <span>Scan to Join</span>
       </div>
     </div>
 
@@ -1362,10 +1361,10 @@ th:first-child, td:first-child { text-align: left; }
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <strong style="font-size:0.95rem">Players Joined (<span id="lobbyPlayerCount">0</span>)</strong>
-      <span class="status-pill" id="lobbyPollBadge">Waiting for players…</span>
+      <span class="status-pill" id="lobbyPollBadge">Connecting room…</span>
     </div>
     <div class="player-chips" id="lobbyPlayerList">
-      <span class="mute" style="font-size:0.86rem">Share the Room PIN or Join Link above. Players will appear here as they join.</span>
+      <span class="mute" style="font-size:0.86rem">Players will appear here automatically as they join with the Room PIN.</span>
     </div>
 
     <div class="row" style="margin-top:22px;justify-content:space-between">
@@ -1488,7 +1487,7 @@ th:first-child, td:first-child { text-align: left; }
     <div style="font-size:2.2rem;margin-bottom:8px">⏳</div>
     <h2 style="margin:0 0 6px">You're in the room!</h2>
     <p class="mute" style="margin:0 auto">Watch the host screen. Round 1 will begin shortly.</p>
-    <div id="pLobbySaveNotice" class="status-pill ok hidden" style="margin-top:16px">☁️ Your results will be saved in the host's spreadsheet.</div>
+    <div id="pLobbySaveNotice" class="status-pill ok hidden" style="margin-top:16px">☁️ Your results will also be saved in the host's spreadsheet.</div>
   </div>
 
   <!-- Player Active Round -->
@@ -1613,107 +1612,19 @@ th:first-child, td:first-child { text-align: left; }
 "use strict";
 const $ = id => document.getElementById(id);
 
-/* ---------- Google Apps Script template (supports Solo + Live Multiplayer) ---------- */
+/* ---------- Optional Google Apps Script template (only used if host enables Sheet sync) ---------- */
 const APPS_SCRIPT_TEMPLATE = `function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(10000);
   try {
     var body = JSON.parse(e.postData.contents);
     var action = body.action || "save_rows";
-    var cache = CacheService.getScriptCache();
 
     if (action === "ping") {
       var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-      return jsonOut({ status: "ok", liveReady: true, message: "Connected to " + sheet.getName() });
+      return jsonOut({ status: "ok", message: "Connected to " + sheet.getName() });
     }
 
-    // --- LIVE MULTIPLAYER ENDPOINTS ---
-    if (action === "live_create") {
-      var pin = String(body.pin || "").toUpperCase();
-      var room = {
-        pin: pin,
-        hostToken: body.hostToken,
-        phase: "lobby",
-        round: 0,
-        roundStartedAt: 0,
-        config: body.config,
-        players: []
-      };
-      cache.put("room_" + pin, JSON.stringify(room), 21600);
-      return jsonOut({ status: "ok", room: room });
-    }
-
-    if (action === "live_join") {
-      var pin = String(body.pin || "").toUpperCase();
-      var raw = cache.get("room_" + pin);
-      if (!raw) return jsonOut({ status: "error", message: "Room PIN not found or expired." });
-      var room = JSON.parse(raw);
-      var p = body.player;
-      if (!room.players.some(function(x) { return x.id === p.id; })) {
-        room.players.push({ id: p.id, name: p.name });
-        cache.put("room_" + pin, JSON.stringify(room), 21600);
-      }
-      var pKey = "room_" + pin + "_p_" + p.id;
-      if (!cache.get(pKey)) {
-        cache.put(pKey, JSON.stringify({
-          id: p.id, name: p.name, score: 0, streak: 0,
-          lastRound: 0, lastCorrect: null, lastRtMs: null, lastPts: 0, answers: []
-        }), 21600);
-      }
-      return jsonOut({ status: "ok", room: room });
-    }
-
-    if (action === "live_host_update") {
-      var pin = String(body.pin || "").toUpperCase();
-      var raw = cache.get("room_" + pin);
-      if (!raw) return jsonOut({ status: "error", message: "Room expired." });
-      var room = JSON.parse(raw);
-      if (room.hostToken !== body.hostToken) return jsonOut({ status: "error", message: "Unauthorized" });
-      room.phase = body.phase;
-      room.round = body.round;
-      room.roundStartedAt = body.roundStartedAt || Date.now();
-      cache.put("room_" + pin, JSON.stringify(room), 21600);
-      return jsonOut({ status: "ok", room: room });
-    }
-
-    if (action === "live_host_poll") {
-      var pin = String(body.pin || "").toUpperCase();
-      var raw = cache.get("room_" + pin);
-      if (!raw) return jsonOut({ status: "error", message: "Room not found." });
-      var room = JSON.parse(raw);
-      var keys = room.players.map(function(p) { return "room_" + pin + "_p_" + p.id; });
-      var map = keys.length ? cache.getAll(keys) : {};
-      var states = room.players.map(function(p) {
-        var s = map["room_" + pin + "_p_" + p.id];
-        return s ? JSON.parse(s) : { id: p.id, name: p.name, score: 0, streak: 0, lastRound: 0, answers: [] };
-      });
-      return jsonOut({ status: "ok", room: room, players: states });
-    }
-
-    if (action === "live_player_poll") {
-      var pin = String(body.pin || "").toUpperCase();
-      var raw = cache.get("room_" + pin);
-      if (!raw) return jsonOut({ status: "error", message: "Room not found or ended." });
-      var room = JSON.parse(raw);
-      var keys = room.players.map(function(p) { return "room_" + pin + "_p_" + p.id; });
-      var map = keys.length ? cache.getAll(keys) : {};
-      var standings = room.players.map(function(p) {
-        var s = map["room_" + pin + "_p_" + p.id];
-        var obj = s ? JSON.parse(s) : { id: p.id, name: p.name, score: 0 };
-        return { id: obj.id, name: obj.name, score: obj.score || 0 };
-      });
-      return jsonOut({ status: "ok", room: room, standings: standings });
-    }
-
-    if (action === "live_player_answer") {
-      var pin = String(body.pin || "").toUpperCase();
-      var p = body.state;
-      cache.put("room_" + pin + "_p_" + p.id, JSON.stringify(p), 21600);
-      if (body.row) appendRowsToSheet([body.row]);
-      return jsonOut({ status: "ok" });
-    }
-
-    // --- SOLO / INDIVIDUAL ROWS SAVE ---
     var rows = body.rows || (body.row ? [body.row] : []);
     if (rows.length > 0) appendRowsToSheet(rows);
     return jsonOut({ status: "ok", saved: rows.length });
@@ -1823,6 +1734,18 @@ function applyKbUI() {
   }
 }
 
+function updateGasReadyBadge() {
+  const url = $("gasUrl").value.trim();
+  const badge = $("gasReadyBadge");
+  if (url && url.includes("script.google.com")) {
+    badge.className = "status-pill ok";
+    badge.textContent = "✓ URL set";
+  } else {
+    badge.className = "status-pill";
+    badge.textContent = "Optional";
+  }
+}
+
 $("themeToggle").onclick = () => {
   prefs.theme = prefs.theme === "dark" ? "light" : "dark";
   savePrefs();
@@ -1858,14 +1781,43 @@ bindSegmented("kbGroup", "kb", applyKbUI);
 bindSegmented("paceGroup", "pace");
 $("customWrap").classList.toggle("hidden", prefs.diff !== "custom");
 $("gasUrl").value = prefs.gasUrl || "";
+updateGasReadyBadge();
 $("gasUrl").addEventListener("input", () => {
   prefs.gasUrl = $("gasUrl").value.trim();
   savePrefs();
+  updateGasReadyBadge();
 });
 
 applyTheme();
 applySoundUI();
 applyKbUI();
+
+/* ---------- Optional Google Sheet Config Placement (off by default) ---------- */
+function syncSheetOptionVisibility() {
+  const isLive = setupTabMode === "live";
+  const box = $("gasSectionContainer");
+  if (isLive) {
+    const enabled = $("liveSaveSheet").checked;
+    $("liveSheetConfigWrap").appendChild(box);
+    $("liveSheetConfigWrap").classList.toggle("hidden", !enabled);
+    box.classList.toggle("hidden", !enabled);
+  } else {
+    const enabled = $("soloSheetToggle").checked;
+    $("soloSheetConfigWrap").appendChild(box);
+    $("soloSheetConfigWrap").classList.toggle("hidden", !enabled);
+    box.classList.toggle("hidden", !enabled);
+  }
+}
+
+$("liveSaveSheet").addEventListener("change", () => {
+  sfx("click");
+  syncSheetOptionVisibility();
+});
+
+$("soloSheetToggle").addEventListener("change", () => {
+  sfx("click");
+  syncSheetOptionVisibility();
+});
 
 /* ---------- Setup Mode Tabs (Solo vs Live Multiplayer) ---------- */
 let setupTabMode = "solo";
@@ -1877,15 +1829,9 @@ function setSetupTab(mode) {
   const isLive = mode === "live";
   $("soloSettingsBlock").classList.toggle("hidden", isLive);
   $("liveSettingsBlock").classList.toggle("hidden", !isLive);
-  $("soloLinkBox").classList.toggle("hidden", isLive);
   $("start").classList.toggle("hidden", isLive);
   $("createLiveBtn").classList.toggle("hidden", !isLive);
-  $("shareDetailsSummary").textContent = isLive
-    ? "▸ Google Sheets Connection (Optional — for Live Sync & Saving Results)"
-    : "▸ Share with Participants & Google Sheets Sync (Apps Script)";
-  if (isLive && !prefs.gasUrl) {
-    $("hostShareDetails").open = true;
-  }
+  syncSheetOptionVisibility();
 }
 
 [...$("setupModeTabs").querySelectorAll(".mode-tab")].forEach(btn => {
@@ -2202,6 +2148,7 @@ function readCfg() {
   const nc = prefs.diff === "custom" ? Math.round(clamp(+$("custom").value, 4, 24, 10)) : +prefs.diff;
   let angles = parseAngles($("angles").value);
   if (!angles.length) angles = parseAngles("0-180/15");
+  const useSheet = $("soloSheetToggle").checked;
   return {
     pid: $("pid").value.trim() || "P01",
     nCubes: nc,
@@ -2213,11 +2160,11 @@ function readCfg() {
     axis: $("axis").value,
     kb: prefs.kb,
     pace: prefs.pace,
-    gasUrl: $("gasUrl").value.trim()
+    gasUrl: useSheet ? $("gasUrl").value.trim() : ""
   };
 }
 
-/* ---------- Solo Participant Mode & Apps Script UI ---------- */
+/* ---------- Solo Participant Mode & Optional Apps Script UI ---------- */
 function initSoloParticipantMode() {
   const clamp = (v, a, b, d) => isNaN(v) ? d : Math.min(b, Math.max(a, v));
   const nc = Math.round(clamp(+urlParams.get("cubes"), 4, 24, 6));
@@ -2270,8 +2217,8 @@ function openJoinPanel(prefillPin = "", prefillGas = "", prefillSave = false) {
   $("participantPanel").classList.add("hidden");
   $("liveJoinPanel").classList.remove("hidden");
   $("joinError").classList.add("hidden");
-  liveJoinGasUrl = (prefillGas || prefs.gasUrl || "").trim();
-  $("joinSaveNotice").classList.toggle("hidden", !prefillSave);
+  liveJoinGasUrl = (prefillGas || "").trim();
+  $("joinSaveNotice").classList.toggle("hidden", !(prefillSave && liveJoinGasUrl));
   if (prefillPin) $("joinPin").value = prefillPin.toUpperCase();
   setTimeout(() => ($("joinPin").value ? $("joinName") : $("joinPin")).focus(), 50);
 }
@@ -2290,7 +2237,7 @@ $("joinNavBtn").onclick = () => {
   show("setup");
   const paramGas = (urlParams.get("gas") || "").trim();
   const willSave = urlParams.get("save") === "1" && !!paramGas;
-  openJoinPanel(urlParams.get("pin") || "", paramGas || prefs.gasUrl || "", willSave);
+  openJoinPanel(urlParams.get("pin") || "", paramGas, willSave);
 };
 
 $("backFromJoin").onclick = () => {
@@ -2344,8 +2291,10 @@ $("testGas").onclick = async () => {
     });
     const json = await res.json();
     if (json && json.status === "ok") {
-      status.textContent = `✓ ${json.message || "Connected!"}${json.liveReady ? " (Solo & Live Multiplayer ready)" : ""}`;
+      status.textContent = `✓ ${json.message || "Connected!"}`;
       status.style.color = "var(--ok)";
+      $("gasReadyBadge").className = "status-pill ok";
+      $("gasReadyBadge").textContent = "✓ Connected";
       sfx("ok");
     } else {
       throw new Error((json && json.message) || "Unexpected response");
@@ -2378,10 +2327,10 @@ $("genLink").onclick = () => {
   $("shareResult").classList.remove("hidden");
 
   let note = c.gasUrl
-    ? "✓ Settings & Google Sheet sync are embedded in this link."
-    : "Settings are embedded in this link (add an Apps Script URL above if you want automatic spreadsheet saving).";
+    ? "✓ Settings & optional Google Sheet sync are embedded in this link."
+    : "Settings are embedded in this link.";
   if (window.location.protocol === "file:") {
-    note += " Note: You are viewing a local file—host this HTML file on a web URL (e.g., GitHub Pages or Netlify) before sharing with other devices.";
+    note += " Note: Host this HTML file on a web URL before sharing with other devices.";
   }
   $("shareNote").textContent = note;
 };
@@ -2400,7 +2349,7 @@ $("copyLink").onclick = async () => {
   }
 };
 
-/* Background sync queue for Solo Google Apps Script */
+/* Background sync queue for optional Google Sheet saving */
 let syncQueue = [];
 let syncing = false;
 const uploadedUids = new Set();
@@ -2440,6 +2389,17 @@ function updateSyncUI() {
     resMsg.style.color = "var(--ok)";
     retryBtn.classList.add("hidden");
   }
+}
+
+async function postRowsToSheet(gasUrl, rows) {
+  if (!gasUrl || !rows.length) return;
+  try {
+    await fetch(gasUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ rows })
+    });
+  } catch (e) {}
 }
 
 async function flushSyncQueue() {
@@ -2787,17 +2747,407 @@ addEventListener("keydown", e => {
 });
 
 /* ==========================================================================
-   LIVE MULTIPLAYER (HOST & PLAYERS — DETERMINISTIC SEED + APPS SCRIPT / LOCAL)
+   ZERO-DEPENDENCY QR CODE RENDERER (Versions 1-14, EC Level L)
+   ========================================================================== */
+function renderQrToCanvas(canvas, text) {
+  const bytes = new TextEncoder().encode(text);
+  const CAPS = [
+    null,
+    [26, 1, 19, 7, 0, 0, 0],
+    [44, 1, 34, 10, 0, 0, 0],
+    [70, 1, 55, 15, 0, 0, 0],
+    [100, 1, 80, 20, 0, 0, 0],
+    [134, 1, 108, 26, 0, 0, 0],
+    [172, 2, 68, 18, 0, 0, 0],
+    [196, 2, 78, 20, 0, 0, 0],
+    [242, 2, 97, 24, 0, 0, 0],
+    [292, 2, 116, 30, 0, 0, 0],
+    [346, 2, 68, 18, 2, 69, 18],
+    [404, 4, 81, 20, 0, 0, 0],
+    [466, 2, 92, 24, 2, 93, 24],
+    [532, 4, 107, 26, 0, 0, 0],
+    [581, 3, 115, 30, 1, 116, 30]
+  ];
+  let ver = 0;
+  for (let v = 1; v < CAPS.length; v++) {
+    const [, g1, d1, , g2, d2] = CAPS[v];
+    const totalData = g1 * d1 + g2 * d2;
+    const overhead = v <= 9 ? 2 : 3;
+    if (bytes.length + overhead <= totalData) { ver = v; break; }
+  }
+  if (!ver) return false;
+
+  const size = ver * 4 + 17;
+  const mod = Array.from({ length: size }, () => Array(size).fill(null));
+  const func = Array.from({ length: size }, () => Array(size).fill(false));
+  const setFunc = (r, c, val) => {
+    if (r >= 0 && r < size && c >= 0 && c < size) { mod[r][c] = val; func[r][c] = true; }
+  };
+
+  for (const [fr, fc] of [[0, 0], [0, size - 7], [size - 7, 0]]) {
+    for (let r = -1; r <= 7; r++) for (let c = -1; c <= 7; c++) {
+      const dark = r >= 0 && r <= 6 && c >= 0 && c <= 6 && (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+      setFunc(fr + r, fc + c, dark);
+    }
+  }
+  const ALIGN = [[], [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50], [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66]];
+  const coords = ALIGN[ver];
+  for (const r of coords) for (const c of coords) {
+    if (func[r][c]) continue;
+    for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+      setFunc(r + dr, c + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1);
+    }
+  }
+  for (let i = 8; i < size - 8; i++) {
+    setFunc(6, i, i % 2 === 0);
+    setFunc(i, 6, i % 2 === 0);
+  }
+  setFunc(size - 8, 8, true);
+
+  for (let i = 0; i < 9; i++) {
+    if (i !== 6) { setFunc(8, i, false); setFunc(i, 8, false); }
+    if (i < 8) { setFunc(8, size - 1 - i, false); setFunc(size - 1 - i, 8, false); }
+  }
+  if (ver >= 7) {
+    let rem = ver << 12;
+    for (let i = 17; i >= 12; i--) if ((rem >>> i) & 1) rem ^= 0x1f25 << (i - 12);
+    const vBits = (ver << 12) | rem;
+    for (let i = 0; i < 18; i++) {
+      const bit = ((vBits >>> i) & 1) === 1;
+      const a = Math.floor(i / 3), b = i % 3;
+      setFunc(a, size - 11 + b, bit);
+      setFunc(size - 11 + b, a, bit);
+    }
+  }
+
+  const [, g1, d1, e1, g2, d2, e2] = CAPS[ver];
+  const totalData = g1 * d1 + g2 * d2;
+  const bits = [];
+  const pushBits = (val, len) => { for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+  pushBits(0b0100, 4);
+  pushBits(bytes.length, ver <= 9 ? 8 : 16);
+  for (const b of bytes) pushBits(b, 8);
+  pushBits(0, Math.min(4, totalData * 8 - bits.length));
+  while (bits.length % 8) bits.push(0);
+  const dataBytes = [];
+  for (let i = 0; i < bits.length; i += 8) {
+    let v = 0;
+    for (let j = 0; j < 8; j++) v = (v << 1) | bits[i + j];
+    dataBytes.push(v);
+  }
+  const PADS = [0xec, 0x11];
+  for (let i = 0; dataBytes.length < totalData; i++) dataBytes.push(PADS[i % 2]);
+
+  const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  for (let i = 0, x = 1; i < 255; i++) {
+    EXP[i] = EXP[i + 255] = x;
+    LOG[x] = i;
+    x = (x << 1) ^ (x & 0x80 ? 0x11d : 0);
+  }
+  const rsDiv = deg => {
+    let poly = [1];
+    for (let i = 0; i < deg; i++) {
+      const next = new Array(poly.length + 1).fill(0);
+      for (let j = 0; j < poly.length; j++) {
+        next[j] ^= poly[j];
+        next[j + 1] ^= poly[j] === 0 ? 0 : EXP[LOG[poly[j]] + i];
+      }
+      poly = next;
+    }
+    return poly;
+  };
+  const rsEncode = (block, ecLen) => {
+    const gen = rsDiv(ecLen), res = [...block, ...new Array(ecLen).fill(0)];
+    for (let i = 0; i < block.length; i++) {
+      const coef = res[i];
+      if (coef !== 0) for (let j = 1; j < gen.length; j++) res[i + j] ^= EXP[LOG[gen[j]] + LOG[coef]];
+    }
+    return res.slice(block.length);
+  };
+
+  const blocks = [], ecBlocks = [];
+  let off = 0;
+  for (let i = 0; i < g1; i++) { const b = dataBytes.slice(off, off + d1); off += d1; blocks.push(b); ecBlocks.push(rsEncode(b, e1)); }
+  for (let i = 0; i < g2; i++) { const b = dataBytes.slice(off, off + d2); off += d2; blocks.push(b); ecBlocks.push(rsEncode(b, e2)); }
+
+  const stream = [];
+  for (let i = 0; i < Math.max(d1, d2); i++) for (const b of blocks) if (i < b.length) stream.push(b[i]);
+  for (let i = 0; i < Math.max(e1, e2); i++) for (const b of ecBlocks) if (i < b.length) stream.push(b[i]);
+
+  let bitIdx = 0, dirUp = true;
+  for (let col = size - 1; col > 0; col -= 2) {
+    if (col === 6) col--;
+    for (let step = 0; step < size; step++) {
+      const r = dirUp ? size - 1 - step : step;
+      for (const dc of [0, -1]) {
+        const c = col + dc;
+        if (func[r][c]) continue;
+        const b = bitIdx < stream.length * 8 ? ((stream[bitIdx >> 3] >>> (7 - (bitIdx & 7))) & 1) : 0;
+        bitIdx++;
+        mod[r][c] = (b ^ (((r + c) % 2 === 0) ? 1 : 0)) === 1;
+      }
+    }
+    dirUp = !dirUp;
+  }
+
+  const fmt = 0x77c4;
+  for (let i = 0; i < 15; i++) {
+    const bit = ((fmt >>> i) & 1) === 1;
+    if (i < 6) mod[8][i] = bit;
+    else if (i < 8) mod[8][i + 1] = bit;
+    else mod[size - 15 + i][8] = bit;
+
+    if (i < 8) mod[8][size - 1 - i] = bit;
+    else if (i < 9) mod[7][8] = bit;
+    else mod[14 - i][8] = bit;
+  }
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, W);
+  const quiet = 2;
+  const cell = W / (size + quiet * 2);
+  ctx.fillStyle = "#0f172a";
+  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+    if (mod[r][c]) ctx.fillRect(Math.floor((c + quiet) * cell), Math.floor((r + quiet) * cell), Math.ceil(cell), Math.ceil(cell));
+  }
+  return true;
+}
+
+/* ==========================================================================
+   ZERO-CONFIG REAL-TIME MULTIPLAYER RELAY (MQTT 3.1.1 OVER TLS WEBSOCKETS)
+   Works across devices & school Wi-Fi on port 443 with no setup or accounts.
+   ========================================================================== */
+const MQTT_BROKERS = [
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt"
+];
+
+class LiveRelayClient {
+  constructor() {
+    this.ws = null;
+    this.connected = false;
+    this.pingTimer = null;
+    this.subs = new Set();
+    this.handlers = [];
+    this.clientId = "im_" + Math.random().toString(36).slice(2, 11);
+    this.packetId = 1;
+    this.closedByUser = false;
+  }
+
+  connect() {
+    this.closedByUser = false;
+    return new Promise((resolve, reject) => {
+      let idx = 0;
+      const tryNext = () => {
+        if (this.closedByUser) return reject(new Error("Closed"));
+        if (idx >= MQTT_BROKERS.length) {
+          return reject(new Error("Could not reach multiplayer relay. Check your internet connection."));
+        }
+        const url = MQTT_BROKERS[idx++];
+        let settled = false;
+        let ws;
+        try {
+          ws = new WebSocket(url, "mqtt");
+        } catch (e) {
+          return tryNext();
+        }
+        ws.binaryType = "arraybuffer";
+
+        const connTimeout = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            try { ws.close(); } catch (e) {}
+            tryNext();
+          }
+        }, 4500);
+
+        ws.onopen = () => {
+          ws.send(this._encodeConnect());
+        };
+
+        ws.onmessage = ev => {
+          const buf = new Uint8Array(ev.data);
+          this._handleFrame(buf, () => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(connTimeout);
+              this.ws = ws;
+              this.connected = true;
+              for (const topic of this.subs) {
+                ws.send(this._encodeSubscribe(topic));
+              }
+              clearInterval(this.pingTimer);
+              this.pingTimer = setInterval(() => {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                  this.ws.send(new Uint8Array([0xc0, 0x00]));
+                }
+              }, 25000);
+              resolve();
+            }
+          });
+        };
+
+        ws.onerror = () => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(connTimeout);
+            try { ws.close(); } catch (e) {}
+            tryNext();
+          }
+        };
+
+        ws.onclose = () => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(connTimeout);
+            tryNext();
+          } else if (this.ws === ws) {
+            this.connected = false;
+            clearInterval(this.pingTimer);
+            if (!this.closedByUser) {
+              setTimeout(() => {
+                if (!this.closedByUser && !this.connected) this.connect().catch(() => {});
+              }, 1500);
+            }
+          }
+        };
+      };
+      tryNext();
+    });
+  }
+
+  subscribe(topic) {
+    this.subs.add(topic);
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(this._encodeSubscribe(topic));
+    }
+  }
+
+  publish(topic, obj, retain = true) {
+    const payload = obj === null ? "" : JSON.stringify(obj);
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(this._encodePublish(topic, payload, retain));
+    }
+  }
+
+  onMessage(fn) {
+    this.handlers.push(fn);
+  }
+
+  close() {
+    this.closedByUser = true;
+    this.connected = false;
+    clearInterval(this.pingTimer);
+    if (this.ws) {
+      try { this.ws.close(); } catch (e) {}
+      this.ws = null;
+    }
+  }
+
+  _encodeStr(str) {
+    const b = new TextEncoder().encode(str);
+    const out = new Uint8Array(2 + b.length);
+    out[0] = (b.length >> 8) & 0xff;
+    out[1] = b.length & 0xff;
+    out.set(b, 2);
+    return out;
+  }
+
+  _encodeRemLen(len) {
+    const out = [];
+    do {
+      let d = len % 128;
+      len = Math.floor(len / 128);
+      if (len > 0) d |= 0x80;
+      out.push(d);
+    } while (len > 0);
+    return new Uint8Array(out);
+  }
+
+  _concat(arrays) {
+    const total = arrays.reduce((s, a) => s + a.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const a of arrays) { out.set(a, off); off += a.length; }
+    return out;
+  }
+
+  _encodeConnect() {
+    const vh = new Uint8Array([0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x02, 0x00, 0x3c]);
+    const cid = this._encodeStr(this.clientId);
+    const rem = this._encodeRemLen(vh.length + cid.length);
+    return this._concat([new Uint8Array([0x10]), rem, vh, cid]);
+  }
+
+  _encodeSubscribe(topic) {
+    const pid = this.packetId++ & 0xffff || 1;
+    const vh = new Uint8Array([(pid >> 8) & 0xff, pid & 0xff]);
+    const t = this._encodeStr(topic);
+    const qos = new Uint8Array([0x00]);
+    const rem = this._encodeRemLen(vh.length + t.length + qos.length);
+    return this._concat([new Uint8Array([0x82]), rem, vh, t, qos]);
+  }
+
+  _encodePublish(topic, payloadStr, retain) {
+    const t = this._encodeStr(topic);
+    const p = new TextEncoder().encode(payloadStr);
+    const rem = this._encodeRemLen(t.length + p.length);
+    return this._concat([new Uint8Array([retain ? 0x31 : 0x30]), rem, t, p]);
+  }
+
+  _handleFrame(buf, onConnack) {
+    let pos = 0;
+    const dec = new TextDecoder();
+    while (pos < buf.length) {
+      const header = buf[pos++];
+      let mult = 1, remLen = 0, digit = 0;
+      do {
+        if (pos >= buf.length) return;
+        digit = buf[pos++];
+        remLen += (digit & 127) * mult;
+        mult *= 128;
+      } while ((digit & 128) !== 0);
+
+      const end = pos + remLen;
+      if (end > buf.length) return;
+      const type = header & 0xf0;
+
+      if (type === 0x20) {
+        if (buf[pos + 1] === 0) onConnack();
+      } else if (type === 0x30) {
+        const tLen = (buf[pos] << 8) | buf[pos + 1];
+        const topic = dec.decode(buf.subarray(pos + 2, pos + 2 + tLen));
+        let pStart = pos + 2 + tLen;
+        if ((header & 0x06) !== 0) pStart += 2;
+        const payloadText = dec.decode(buf.subarray(pStart, end));
+        if (payloadText) {
+          try {
+            const data = JSON.parse(payloadText);
+            for (const fn of this.handlers) fn(topic, data);
+          } catch (e) {}
+        }
+      }
+      pos = end;
+    }
+  }
+}
+
+/* ==========================================================================
+   LIVE MULTIPLAYER (HOST & PLAYERS)
    ========================================================================== */
 let liveHostState = null;
 let livePlayerState = null;
-let livePollTimer = null;
+let liveRelay = null;
 let liveRoundRaf = null;
 let confettiRaf = null;
 
 function stopLiveLoops() {
-  clearInterval(livePollTimer);
-  livePollTimer = null;
+  if (liveRelay) {
+    liveRelay.close();
+    liveRelay = null;
+  }
   cancelAnimationFrame(liveRoundRaf);
   cancelAnimationFrame(confettiRaf);
   stopAnim();
@@ -2813,88 +3163,6 @@ function getLiveStimulus(pin, liveCfg, roundNum) {
   return withSeed(`${pin}_stim_${roundNum}`, () => buildStimulus(liveCfg.nCubes, liveCfg.axis, trialMeta));
 }
 
-/* Transport wrapper: uses Google Apps Script when URL is provided, or localStorage for same-device testing */
-async function liveTransport(gasUrl, action, payload) {
-  if (gasUrl) {
-    const res = await fetch(gasUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, ...payload })
-    });
-    return await res.json();
-  }
-
-  // Local fallback for same-browser / test-tab play without Apps Script
-  const pin = String(payload.pin || "").toUpperCase();
-  const rKey = `isomatch_local_room_${pin}`;
-  const getRoom = () => JSON.parse(localStorage.getItem(rKey) || "null");
-  const setRoom = r => localStorage.setItem(rKey, JSON.stringify(r));
-
-  if (action === "live_create") {
-    const room = {
-      pin,
-      hostToken: payload.hostToken,
-      phase: "lobby",
-      round: 0,
-      roundStartedAt: 0,
-      config: payload.config,
-      players: []
-    };
-    setRoom(room);
-    return { status: "ok", room };
-  }
-  if (action === "live_join") {
-    const room = getRoom();
-    if (!room) return { status: "error", message: "Room PIN not found. Please open the Player Join Link shared by your host." };
-    const p = payload.player;
-    if (!room.players.some(x => x.id === p.id)) {
-      room.players.push({ id: p.id, name: p.name });
-      setRoom(room);
-    }
-    const pKey = `${rKey}_p_${p.id}`;
-    if (!localStorage.getItem(pKey)) {
-      localStorage.setItem(pKey, JSON.stringify({
-        id: p.id, name: p.name, score: 0, streak: 0,
-        lastRound: 0, lastCorrect: null, lastRtMs: null, lastPts: 0, answers: []
-      }));
-    }
-    return { status: "ok", room };
-  }
-  if (action === "live_host_update") {
-    const room = getRoom();
-    if (!room) return { status: "error", message: "Room not found." };
-    room.phase = payload.phase;
-    room.round = payload.round;
-    room.roundStartedAt = payload.roundStartedAt || Date.now();
-    setRoom(room);
-    return { status: "ok", room };
-  }
-  if (action === "live_host_poll") {
-    const room = getRoom();
-    if (!room) return { status: "error", message: "Room not found." };
-    const states = room.players.map(p => {
-      const s = localStorage.getItem(`${rKey}_p_${p.id}`);
-      return s ? JSON.parse(s) : { id: p.id, name: p.name, score: 0, streak: 0, lastRound: 0, answers: [] };
-    });
-    return { status: "ok", room, players: states };
-  }
-  if (action === "live_player_poll") {
-    const room = getRoom();
-    if (!room) return { status: "error", message: "Room ended." };
-    const standings = room.players.map(p => {
-      const s = localStorage.getItem(`${rKey}_p_${p.id}`);
-      const obj = s ? JSON.parse(s) : { id: p.id, name: p.name, score: 0 };
-      return { id: obj.id, name: obj.name, score: obj.score || 0 };
-    });
-    return { status: "ok", room, standings };
-  }
-  if (action === "live_player_answer") {
-    localStorage.setItem(`${rKey}_p_${payload.state.id}`, JSON.stringify(payload.state));
-    return { status: "ok" };
-  }
-  return { status: "error", message: "Unknown action" };
-}
-
 function makeRoomPin() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
@@ -2908,61 +3176,96 @@ function showHostSubView(id) {
   });
 }
 
+function broadcastHostRoomState() {
+  if (!liveHostState || !liveRelay) return;
+  const payload = {
+    pin: liveHostState.pin,
+    phase: liveHostState.phase,
+    round: liveHostState.round,
+    roundStartedAt: liveHostState.roundStartedAt,
+    config: liveHostState.config,
+    standings: getSortedHostPlayers().map(p => ({ id: p.id, name: p.name, score: p.score || 0 })),
+    updatedAt: Date.now()
+  };
+  liveRelay.publish(`isomatch/v1/room/${liveHostState.pin}/state`, payload, true);
+}
+
+function getSortedHostPlayers() {
+  if (!liveHostState) return [];
+  return [...liveHostState.playersMap.values()].sort((a, b) => (b.score || 0) - (a.score || 0));
+}
+
 /* Host: Create Live Room */
 $("createLiveBtn").onclick = async () => {
   sfx("click");
   const clamp = (v, a, b, d) => isNaN(v) ? d : Math.min(b, Math.max(a, v));
+  const useSheet = $("liveSaveSheet").checked;
+  const gasUrl = useSheet ? $("gasUrl").value.trim() : "";
+
   const pin = makeRoomPin();
-  const hostToken = "H_" + Math.random().toString(36).slice(2, 10);
-  const gasUrl = $("gasUrl").value.trim();
   const liveCfg = {
     totalRounds: Math.round(clamp(+$("liveRounds").value, 1, 50, 8)),
     timeLimit: Math.round(clamp(+$("liveTime").value, 5, 120, 20)),
     nCubes: Math.round(clamp(+$("liveCubes").value, 4, 24, 6)),
     axis: $("liveAxis").value,
     anglesRaw: "0-180/15",
-    saveToSheet: $("liveSaveSheet").checked && !!gasUrl
+    gasUrl
   };
 
   $("createLiveBtn").disabled = true;
   $("createLiveBtn").textContent = "Creating Room…";
 
   try {
-    const res = await liveTransport(gasUrl, "live_create", { pin, hostToken, config: liveCfg });
-    if (!res || res.status !== "ok") throw new Error((res && res.message) || "Failed to create room");
+    stopLiveLoops();
+    const relay = new LiveRelayClient();
+    await relay.connect();
+    liveRelay = relay;
 
     liveHostState = {
       pin,
-      hostToken,
-      gasUrl,
       config: liveCfg,
       phase: "lobby",
       round: 0,
       roundStartedAt: 0,
-      players: [],
+      playersMap: new Map(),
       stim: null
     };
+
+    relay.onMessage((topic, msg) => {
+      if (!liveHostState) return;
+      const prefix = `isomatch/v1/room/${pin}/player/`;
+      if (topic.startsWith(prefix) && msg && msg.id) {
+        liveHostState.playersMap.set(msg.id, msg);
+        onHostPlayersUpdated();
+      }
+    });
+    relay.subscribe(`isomatch/v1/room/${pin}/player/+`);
+    broadcastHostRoomState();
 
     const base = window.location.href.split("?")[0].split("#")[0];
     const params = new URLSearchParams();
     params.set("mode", "live");
     params.set("pin", pin);
-    if (gasUrl) params.set("gas", gasUrl);
-    if (liveCfg.saveToSheet) params.set("save", "1");
+    if (gasUrl) {
+      params.set("gas", gasUrl);
+      params.set("save", "1");
+    }
     const joinUrl = `${base}?${params.toString()}`;
     liveHostState.joinUrl = joinUrl;
 
     $("hostPinDisplay").textContent = pin;
     $("hostHudPin").textContent = pin;
-    $("hostJoinUrlText").textContent = joinUrl;
-    $("hostRoomStatus").innerHTML = gasUrl
-      ? `☁️ Connected to Google Apps Script (${liveCfg.totalRounds} rounds · ${liveCfg.timeLimit}s per round · ${liveCfg.nCubes} cubes${liveCfg.saveToSheet ? " · saving results to spreadsheet" : ""}).`
-      : `⚠️ Running in local browser test mode (no Apps Script URL set). Add an Apps Script URL to play across phones/laptops.`;
+    $("hostJoinUrlText").textContent = window.location.protocol !== "file:" ? joinUrl : "";
+    const qrOk = window.location.protocol !== "file:" && renderQrToCanvas($("qrCanvas"), joinUrl);
+    $("qrCardWrap").classList.toggle("hidden", !qrOk);
+
+    $("hostRoomStatus").textContent = `${liveCfg.totalRounds} rounds · ${liveCfg.timeLimit}s per round · ${liveCfg.nCubes} cubes${gasUrl ? " · Optional Google Sheet sync enabled" : ""}`;
+    $("lobbyPollBadge").className = "status-pill ok";
+    $("lobbyPollBadge").textContent = "● Live & ready";
 
     show("liveHost");
     showHostSubView("liveHostLobby");
     renderHostLobbyPlayers([]);
-    startHostPolling();
   } catch (err) {
     alert(`Could not create live room: ${err.message}`);
   } finally {
@@ -2970,6 +3273,23 @@ $("createLiveBtn").onclick = async () => {
     $("createLiveBtn").textContent = "Create Live Game Room";
   }
 };
+
+function onHostPlayersUpdated() {
+  if (!liveHostState) return;
+  const players = getSortedHostPlayers();
+  if (liveHostState.phase === "lobby") {
+    $("lobbyPollBadge").textContent = `${players.length} joined`;
+    renderHostLobbyPlayers(players);
+    broadcastHostRoomState();
+  } else if (liveHostState.phase === "question") {
+    const total = players.length;
+    const answered = players.filter(p => p.lastRound === liveHostState.round).length;
+    $("hostAnswerCount").textContent = `${answered} / ${total}`;
+    if (total > 0 && answered >= total) {
+      finishHostRound();
+    }
+  }
+}
 
 $("copyLiveLinkBtn").onclick = async () => {
   if (!liveHostState) return;
@@ -2991,39 +3311,13 @@ function renderHostLobbyPlayers(players) {
   $("lobbyPlayerCount").textContent = players.length;
   const box = $("lobbyPlayerList");
   if (!players.length) {
-    box.innerHTML = `<span class="mute" style="font-size:0.86rem">Share the Room PIN or Join Link above. Players will appear here as they join.</span>`;
+    box.innerHTML = `<span class="mute" style="font-size:0.86rem">Players will appear here automatically as they join with the Room PIN.</span>`;
     return;
   }
   box.innerHTML = players.map(p => `<div class="player-chip">👤 ${escapeHtml(p.name)}</div>`).join("");
 }
 
-function startHostPolling() {
-  clearInterval(livePollTimer);
-  const poll = async () => {
-    if (!liveHostState) return;
-    try {
-      const res = await liveTransport(liveHostState.gasUrl, "live_host_poll", { pin: liveHostState.pin });
-      if (!res || res.status !== "ok") return;
-      liveHostState.players = res.players || [];
-
-      if (liveHostState.phase === "lobby") {
-        $("lobbyPollBadge").textContent = `${liveHostState.players.length} ready`;
-        renderHostLobbyPlayers(liveHostState.players);
-      } else if (liveHostState.phase === "question") {
-        const total = liveHostState.players.length;
-        const answered = liveHostState.players.filter(p => p.lastRound === liveHostState.round).length;
-        $("hostAnswerCount").textContent = `${answered} / ${total}`;
-        if (total > 0 && answered >= total) {
-          finishHostRound();
-        }
-      }
-    } catch (e) {}
-  };
-  poll();
-  livePollTimer = setInterval(poll, 1400);
-}
-
-async function startHostRound(roundNum) {
+function startHostRound(roundNum) {
   if (!liveHostState) return;
   sfx("click");
   const now = Date.now();
@@ -3034,20 +3328,13 @@ async function startHostRound(roundNum) {
 
   showHostSubView("liveHostRound");
   $("hostRoundCount").textContent = `${roundNum} / ${liveHostState.config.totalRounds}`;
-  const total = liveHostState.players.length;
+  const total = liveHostState.playersMap.size;
   $("hostAnswerCount").textContent = `0 / ${total}`;
 
   draw($("hc1"), liveHostState.stim.obj, liveHostState.stim.E, liveHostState.stim.sc, {});
   draw($("hc2"), liveHostState.stim.t.same ? liveHostState.stim.obj : liveHostState.stim.mirror, liveHostState.stim.S, liveHostState.stim.sc, {});
 
-  await liveTransport(liveHostState.gasUrl, "live_host_update", {
-    pin: liveHostState.pin,
-    hostToken: liveHostState.hostToken,
-    phase: "question",
-    round: roundNum,
-    roundStartedAt: now
-  });
-
+  broadcastHostRoomState();
   runHostCountdown(liveHostState.config.timeLimit, now);
 }
 
@@ -3073,26 +3360,12 @@ function runHostCountdown(limitSec, startedAt) {
   })();
 }
 
-async function finishHostRound() {
+function finishHostRound() {
   if (!liveHostState || liveHostState.phase !== "question") return;
   liveHostState.phase = "leaderboard";
   cancelAnimationFrame(liveRoundRaf);
   sfx("ok");
-
-  await liveTransport(liveHostState.gasUrl, "live_host_update", {
-    pin: liveHostState.pin,
-    hostToken: liveHostState.hostToken,
-    phase: "leaderboard",
-    round: liveHostState.round,
-    roundStartedAt: liveHostState.roundStartedAt
-  });
-
-  // One final poll to grab any just-submitted answers
-  try {
-    const res = await liveTransport(liveHostState.gasUrl, "live_host_poll", { pin: liveHostState.pin });
-    if (res && res.status === "ok") liveHostState.players = res.players || [];
-  } catch (e) {}
-
+  broadcastHostRoomState();
   renderHostLeaderboard();
 }
 
@@ -3108,7 +3381,7 @@ function renderHostLeaderboard() {
     ? `Answer: <span style="color:var(--ok)">Same Object</span> (${stim.t.angle}° ${AXN[stim.axisName]})`
     : `Answer: <span style="color:var(--accent)">Different — Mirror Images</span> (${stim.t.angle}° ${AXN[stim.axisName]})`;
 
-  const sorted = [...liveHostState.players].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const sorted = getSortedHostPlayers();
   const correctCount = sorted.filter(p => p.lastRound === rNum && p.lastCorrect).length;
   $("lbRoundStats").textContent = `${correctCount} of ${sorted.length} player${sorted.length === 1 ? "" : "s"} answered correctly.`;
 
@@ -3159,28 +3432,24 @@ $("hostNextRoundBtn").onclick = () => {
 };
 
 $("cancelLiveBtn").onclick = () => {
+  if (liveHostState && liveRelay) {
+    liveHostState.phase = "ended";
+    broadcastHostRoomState();
+  }
   stopLiveLoops();
   liveHostState = null;
   show("setup");
 };
 
 /* Victory Ceremony (1st, 2nd, 3rd Podium + Confetti + CSV Export) */
-async function showVictoryCeremony() {
+function showVictoryCeremony() {
   if (!liveHostState) return;
   liveHostState.phase = "podium";
-  clearInterval(livePollTimer);
   sfx("fanfare");
-
-  await liveTransport(liveHostState.gasUrl, "live_host_update", {
-    pin: liveHostState.pin,
-    hostToken: liveHostState.hostToken,
-    phase: "podium",
-    round: liveHostState.round,
-    roundStartedAt: liveHostState.roundStartedAt
-  });
+  broadcastHostRoomState();
 
   showHostSubView("liveHostPodium");
-  const sorted = [...liveHostState.players].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const sorted = getSortedHostPlayers();
 
   ["pod1", "pod2", "pod3"].forEach(id => $(id).classList.remove("revealed"));
   const fillPod = (idx, nameId, ptsId) => {
@@ -3199,7 +3468,6 @@ async function showVictoryCeremony() {
     launchConfetti();
   }, 1300);
 
-  // Full Standings Table
   let tbl = `<tr><th>Rank</th><th>Player</th><th>Total Score</th><th>Correct</th><th>Avg Speed</th></tr>`;
   sorted.forEach((p, idx) => {
     const ans = Array.isArray(p.answers) ? p.answers : [];
@@ -3260,7 +3528,7 @@ function launchConfetti() {
 $("exportLiveCsvBtn").onclick = () => {
   if (!liveHostState) return;
   const rows = [];
-  for (const p of liveHostState.players) {
+  for (const p of getSortedHostPlayers()) {
     for (const a of (p.answers || [])) {
       rows.push({
         mode: "multiplayer",
@@ -3304,10 +3572,25 @@ function showPlayerSubView(id) {
   });
 }
 
+function publishPlayerState() {
+  const st = livePlayerState;
+  if (!st || !liveRelay) return;
+  liveRelay.publish(`isomatch/v1/room/${st.pin}/player/${st.id}`, {
+    id: st.id,
+    name: st.name,
+    score: st.score,
+    streak: st.streak,
+    lastRound: st.lastRound,
+    lastCorrect: st.lastCorrect,
+    lastRtMs: st.lastRtMs,
+    lastPts: st.lastPts,
+    answers: st.answers
+  }, true);
+}
+
 $("joinGameBtn").onclick = async () => {
   const pin = $("joinPin").value.trim().toUpperCase();
   const name = $("joinName").value.trim();
-  const gasUrl = liveJoinGasUrl;
   const errEl = $("joinError");
   errEl.classList.add("hidden");
 
@@ -3318,23 +3601,42 @@ $("joinGameBtn").onclick = async () => {
   }
 
   $("joinGameBtn").disabled = true;
-  $("joinGameBtn").textContent = "Joining…";
+  $("joinGameBtn").textContent = "Connecting…";
 
   try {
-    const playerId = "PL_" + Math.random().toString(36).slice(2, 9);
-    const res = await liveTransport(gasUrl, "live_join", {
-      pin,
-      player: { id: playerId, name }
+    stopLiveLoops();
+    const relay = new LiveRelayClient();
+    await relay.connect();
+    liveRelay = relay;
+
+    const room = await new Promise((resolve, reject) => {
+      let done = false;
+      const timer = setTimeout(() => {
+        if (!done) {
+          done = true;
+          reject(new Error(`Room PIN "${pin}" not found. Check the PIN on the host's screen and try again.`));
+        }
+      }, 3000);
+
+      relay.onMessage((topic, msg) => {
+        if (done) return;
+        if (topic === `isomatch/v1/room/${pin}/state` && msg && msg.pin === pin && msg.phase !== "ended") {
+          done = true;
+          clearTimeout(timer);
+          resolve(msg);
+        }
+      });
+      relay.subscribe(`isomatch/v1/room/${pin}/state`);
     });
-    if (!res || res.status !== "ok") {
-      throw new Error((res && res.message) || "Could not join room.");
-    }
 
     sfx("ok");
-    const roomCfg = res.room.config || {};
+    const playerId = "PL_" + Math.random().toString(36).slice(2, 9);
+    const roomCfg = room.config || {};
+    const effectiveGas = (roomCfg.gasUrl || liveJoinGasUrl || "").trim();
+
     livePlayerState = {
       pin,
-      gasUrl,
+      gasUrl: effectiveGas,
       id: playerId,
       name,
       config: roomCfg,
@@ -3353,14 +3655,22 @@ $("joinGameBtn").onclick = async () => {
       stim: null
     };
 
-    $("pLobbySaveNotice").classList.toggle("hidden", !roomCfg.saveToSheet);
+    relay.onMessage((topic, msg) => {
+      if (topic === `isomatch/v1/room/${pin}/state` && msg) {
+        handlePlayerRoomUpdate(msg);
+      }
+    });
+
+    publishPlayerState();
+
+    $("pLobbySaveNotice").classList.toggle("hidden", !effectiveGas);
     $("pLiveNameDisplay").textContent = name;
     $("pLiveScoreDisplay").textContent = "0";
     $("pLiveRoundDisplay").textContent = `Room ${pin}`;
     show("livePlayer");
-    showPlayerSubView("pLiveLobbyView");
-    startPlayerPolling();
+    handlePlayerRoomUpdate(room);
   } catch (err) {
+    stopLiveLoops();
     errEl.textContent = err.message;
     errEl.classList.remove("hidden");
     sfx("bad");
@@ -3370,38 +3680,33 @@ $("joinGameBtn").onclick = async () => {
   }
 };
 
-function startPlayerPolling() {
-  clearInterval(livePollTimer);
-  const poll = async () => {
-    if (!livePlayerState) return;
-    try {
-      const res = await liveTransport(livePlayerState.gasUrl, "live_player_poll", { pin: livePlayerState.pin });
-      if (!res || res.status !== "ok") return;
-      const room = res.room;
-      const standings = (res.standings || []).sort((a, b) => (b.score || 0) - (a.score || 0));
+function handlePlayerRoomUpdate(room) {
+  if (!livePlayerState || !room) return;
+  const standings = (room.standings || []).sort((a, b) => (b.score || 0) - (a.score || 0));
 
-      if (room.phase === "lobby") {
-        if (livePlayerState.currentPhaseShown !== "lobby") {
-          livePlayerState.currentPhaseShown = "lobby";
-          showPlayerSubView("pLiveLobbyView");
-        }
-      } else if (room.phase === "question") {
-        if (livePlayerState.currentRoundShown !== room.round || livePlayerState.currentPhaseShown !== "question") {
-          enterPlayerRound(room);
-        }
-      } else if (room.phase === "leaderboard") {
-        if (livePlayerState.currentPhaseShown !== `lb_${room.round}`) {
-          enterPlayerLeaderboard(room, standings);
-        }
-      } else if (room.phase === "podium") {
-        if (livePlayerState.currentPhaseShown !== "podium") {
-          enterPlayerPodium(room, standings);
-        }
-      }
-    } catch (e) {}
-  };
-  poll();
-  livePollTimer = setInterval(poll, 1200);
+  if (room.phase === "lobby") {
+    if (livePlayerState.currentPhaseShown !== "lobby") {
+      livePlayerState.currentPhaseShown = "lobby";
+      showPlayerSubView("pLiveLobbyView");
+    }
+  } else if (room.phase === "question") {
+    if (livePlayerState.currentRoundShown !== room.round || livePlayerState.currentPhaseShown !== "question") {
+      enterPlayerRound(room);
+    }
+  } else if (room.phase === "leaderboard") {
+    if (livePlayerState.currentPhaseShown !== `lb_${room.round}`) {
+      enterPlayerLeaderboard(room, standings);
+    }
+  } else if (room.phase === "podium") {
+    if (livePlayerState.currentPhaseShown !== "podium") {
+      enterPlayerPodium(room, standings);
+    }
+  } else if (room.phase === "ended") {
+    stopLiveLoops();
+    livePlayerState = null;
+    alert("The host ended this game room.");
+    show("setup");
+  }
 }
 
 function enterPlayerRound(room) {
@@ -3442,7 +3747,7 @@ function enterPlayerRound(room) {
   })(st.roundStartPerf);
 }
 
-async function submitLivePlayerAnswer(ans) {
+function submitLivePlayerAnswer(ans) {
   const st = livePlayerState;
   if (!st || !st.accepting) return;
   st.accepting = false;
@@ -3498,21 +3803,10 @@ async function submitLivePlayerAnswer(ans) {
   $("pLiveChoices").classList.add("hidden");
   $("pLiveLockedCard").classList.remove("hidden");
 
-  await liveTransport(st.gasUrl, "live_player_answer", {
-    pin: st.pin,
-    state: {
-      id: st.id,
-      name: st.name,
-      score: st.score,
-      streak: st.streak,
-      lastRound: st.lastRound,
-      lastCorrect: st.lastCorrect,
-      lastRtMs: st.lastRtMs,
-      lastPts: st.lastPts,
-      answers: st.answers
-    },
-    row: st.config.saveToSheet ? row : null
-  });
+  publishPlayerState();
+  if (st.gasUrl) {
+    postRowsToSheet(st.gasUrl, [row]);
+  }
 }
 
 $("pbs").onclick = () => submitLivePlayerAnswer(true);
@@ -3553,7 +3847,6 @@ function enterPlayerPodium(room, standings) {
   const st = livePlayerState;
   st.accepting = false;
   st.currentPhaseShown = "podium";
-  clearInterval(livePollTimer);
   sfx("fanfare");
 
   const rankIdx = standings.findIndex(p => p.id === st.id);
